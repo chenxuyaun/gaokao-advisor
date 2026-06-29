@@ -387,6 +387,7 @@ async function submitAsk(btn) {
   const card = panel.closest('.major-card');
   const answersDiv = panel.querySelector('.ask-answers');
   const selected = panel.querySelectorAll('.ask-chip.selected');
+  const input = panel.querySelector('.ask-input');
   
   if (!selected.length && !(input && input.value.trim())) {
     answersDiv.innerHTML = '<div class="ask-answer-item" style="color:var(--amber);">请先选择你想问的问题</div>';
@@ -395,7 +396,7 @@ async function submitAsk(btn) {
   
   const questions = Array.from(selected).map(c => c.textContent);
   // Also collect custom input
-  const input = panel.querySelector('.ask-input');
+  input = panel.querySelector('.ask-input');
   if (input && input.value.trim()) {
     questions.push(input.value.trim());
     input.value = '';
