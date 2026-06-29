@@ -181,10 +181,27 @@ async def recommend_v3(req: RecommendV2Request):
                     est_score += 30
                 elif tier == "保底":
                     est_score -= 20
-                # Prefer AI's estimated score if provided
                 ai_score = rec.get("best_school_score")
                 if ai_score and ai_score > 0:
                     est_score = ai_score
+                
+                # Look up school level/city from database
+                school_info = {"level": "", "city": ""}
+                school_name = rec.get("best_school", "")
+                try:
+                    from app.database import get_db as db_get2
+                    db2 = await db_get2()
+                    cur2 = await db2.execute("SELECT level, city FROM universities WHERE name LIKE ? LIMIT 1", [f"%{school_name}%"])
+                    row2 = await cur2.fetchone()
+                    if row2:
+                        school_info = {"level": row2[0] or "", "city": row2[1] or ""}
+                        print(f"[v3] School lookup: {school_name} -> {school_info}")
+                    else:
+                        print(f"[v3] School NOT found: {school_name}")
+                    await db2.close()
+                except Exception as e:
+                    print(f"[v3] School lookup error: {e}")
+                    pass
                 
                 majors.append(MajorGroup(
                     major_category=rec.get("major", "综合类"),
@@ -202,7 +219,8 @@ async def recommend_v3(req: RecommendV2Request):
                     schools=[
                         SchoolInfo(
                             id=0, name=rec.get("best_school", ""),
-                            level="", city="", min_score=est_score,
+                            level=school_info.get("level",""), city=school_info.get("city",""),
+                            min_score=est_score,
                             min_rank=0,
                             tier=rec.get("best_school_tier", "稳妥"), confidence=CONFIDENCE,
                         )
