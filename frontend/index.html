@@ -165,7 +165,7 @@ async function search() {
   results.innerHTML = '';
 
   try {
-    const resp = await fetch(API + '/recommend-v2', {
+    const resp = await fetch(API + '/recommend-v3', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
