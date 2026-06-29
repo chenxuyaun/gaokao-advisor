@@ -100,6 +100,39 @@ async def generate_ai_analysis(score: int, rank: int, province: str, category: s
             salary_5yr = f"（参考：该方向5年平均薪资约{m['avg_salary']/10000:.0f}万/年）"
             break
 
+    # ===== 实时市场数据搜索 =====
+    market_data = ""
+    try:
+        search_queries = []
+        for m in majors[:4]:
+            cat = m['major_category'].split("/")[0].split(" ")[0]
+            if len(cat) >= 2:
+                search_queries.append(f"{cat} 就业 2026 薪资")
+        
+        async with httpx.AsyncClient(timeout=15) as client:
+            for sq in search_queries[:3]:
+                try:
+                    resp = await client.get(
+                        "https://zh.wikipedia.org/w/api.php",
+                        params={"action": "query", "list": "search", "srsearch": sq, "format": "json", "srlimit": "1"},
+                        headers={"User-Agent": "GaokaoAdvisor/2.0"},
+                    )
+                    data = resp.json()
+                    results = data.get("query", {}).get("search", [])
+                    if results:
+                        snippet = results[0].get("snippet", "")[:200]
+                        snippet = snippet.replace('<span class="searchmatch">','').replace('</span>','')
+                        market_data += f"- {sq}: {snippet}\n"
+                except:
+                    pass
+    except:
+        pass
+
+    if market_data:
+        market_section = f"\n【实时市场数据】\n以下是搜索到的相关专业最新市场信息（2026年）：\n{market_data}\n请结合以上最新数据做出分析。\n"
+    else:
+        market_section = ""
+
     prompt = f"""你像张雪峰老师一样——数据驱动、就业导向、说人话、不给模糊建议。这是你的工作方式：
 
 你现在是一个普通{province}{category}考生（{score}分，全省位次{rank}名，选科{subject}）的志愿顾问。
@@ -109,6 +142,7 @@ async def generate_ai_analysis(score: int, rank: int, province: str, category: s
 系统根据就业率、薪资、考公方向、行业前景等综合评分，推荐了以下专业方向：
 {major_list}
 {salary_5yr}
+{market_section}
 
 请你用张雪峰式的思维框架来回答（300字以内，东北大哥语气，说数据说判断，不说套话）：
 

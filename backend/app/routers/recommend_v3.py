@@ -40,6 +40,39 @@ async def ai_driven_recommend(
             f" | 学校: {schools_str}"
         )
 
+    # ===== 实时市场数据搜索 =====
+    market_data = ""
+    try:
+        search_queries = []
+        for m in candidates[:4]:
+            cat = m['major_category'].split("/")[0].split(" ")[0]
+            if len(cat) >= 2:
+                search_queries.append(f"{cat} 就业 2026")
+        
+        import asyncio
+        async with httpx.AsyncClient(timeout=15) as client:
+            for sq in search_queries[:3]:
+                try:
+                    resp = await client.get(
+                        "https://zh.wikipedia.org/w/api.php",
+                        params={"action": "query", "list": "search", "srsearch": sq, "format": "json", "srlimit": "1"},
+                        headers={"User-Agent": "GaokaoAdvisor/2.0"},
+                    )
+                    data = resp.json()
+                    results = data.get("query", {}).get("search", [])
+                    if results:
+                        snippet = results[0].get("snippet", "")[:200]
+                        snippet = snippet.replace('<span class="searchmatch">','').replace('</span>','')
+                        market_data += f"- {sq}: {snippet}\n"
+                except:
+                    pass
+    except:
+        pass
+
+    market_section = ""
+    if market_data:
+        market_section = f"\n【2026年实时市场数据参考】\n{market_data}\n"
+
     prompt = f"""你是一位资深高考志愿规划师，你分析问题的风格像张雪峰老师：数据驱动、就业导向、对普通家庭负责。
 
 考生信息：
@@ -47,7 +80,7 @@ async def ai_driven_recommend(
 
 以下是系统筛选出的所有候选专业方向（含就业率、薪资、学校）：
 {chr(10).join(lines)}
-
+{market_section}
 请用「张雪峰式」的思维做推荐——你的核心方法论：
 1. 【就业倒推法】从就业数据倒推选择——看中位数毕业生的去向，不看顶尖案例
 2. 【阶层现实主义】默认孩子是普通家庭——先谋生再谋爱，先站稳再登高
