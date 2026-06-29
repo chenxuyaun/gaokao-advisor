@@ -40,38 +40,20 @@ async def ai_driven_recommend(
             f" | 学校: {schools_str}"
         )
 
-    # ===== 实时市场数据搜索 =====
-    market_data = ""
+    # ===== 实时市场数据搜索（三引擎） =====
+    market_section = ""
     try:
         search_queries = []
         for m in candidates[:4]:
             cat = m['major_category'].split("/")[0].split(" ")[0]
             if len(cat) >= 2:
-                search_queries.append(f"{cat} 就业 2026")
-        
-        import asyncio
-        async with httpx.AsyncClient(timeout=15) as client:
-            for sq in search_queries[:3]:
-                try:
-                    resp = await client.get(
-                        "https://zh.wikipedia.org/w/api.php",
-                        params={"action": "query", "list": "search", "srsearch": sq, "format": "json", "srlimit": "1"},
-                        headers={"User-Agent": "GaokaoAdvisor/2.0"},
-                    )
-                    data = resp.json()
-                    results = data.get("query", {}).get("search", [])
-                    if results:
-                        snippet = results[0].get("snippet", "")[:200]
-                        snippet = snippet.replace('<span class="searchmatch">','').replace('</span>','')
-                        market_data += f"- {sq}: {snippet}\n"
-                except:
-                    pass
+                search_queries.append(f"{cat} 2026 就业")
+        from app.searcher import search_market
+        market_data = await search_market(search_queries)
+        if market_data:
+            market_section = f"\n【2026年最新市场数据】\n以下是实时搜索到的相关专业就业市场信息（请优先使用这些数据）：\n{market_data}\n"
     except:
         pass
-
-    market_section = ""
-    if market_data:
-        market_section = f"\n【2026年实时市场数据参考】\n{market_data}\n"
 
     prompt = f"""你是一位资深高考志愿规划师，你分析问题的风格像张雪峰老师：数据驱动、就业导向、对普通家庭负责。
 
@@ -186,9 +168,12 @@ async def recommend_v3(req: RecommendV2Request):
                     schools=schools,
                 ))
 
-    # Fallback: if AI failed, use formula results
-    if not majors:
-        for m in candidates[:5]:
+    # Fallback: if AI returned fewer than 5, supplement with formula results
+    if len(majors) < 5:
+        existing = {m.major_category for m in majors}
+        for m in candidates[:10]:
+            if m["major_category"] in existing:
+                continue
             schools = [
                 SchoolInfo(
                     id=s["id"], name=s["name"], level=s["level"],
@@ -209,6 +194,8 @@ async def recommend_v3(req: RecommendV2Request):
                 zhang_xuefeng_comment=m.get("zhang_xuefeng_comment"),
                 schools=schools,
             ))
+            if len(majors) >= 5:
+                break
 
     return RecommendV2Response(
         province=req.province, score=req.score, category=req.category,

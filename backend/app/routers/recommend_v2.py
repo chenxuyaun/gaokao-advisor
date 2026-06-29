@@ -100,38 +100,20 @@ async def generate_ai_analysis(score: int, rank: int, province: str, category: s
             salary_5yr = f"（参考：该方向5年平均薪资约{m['avg_salary']/10000:.0f}万/年）"
             break
 
-    # ===== 实时市场数据搜索 =====
-    market_data = ""
+    # ===== 实时市场数据搜索（三引擎） =====
+    market_section = ""
     try:
         search_queries = []
         for m in majors[:4]:
             cat = m['major_category'].split("/")[0].split(" ")[0]
             if len(cat) >= 2:
-                search_queries.append(f"{cat} 就业 2026 薪资")
-        
-        async with httpx.AsyncClient(timeout=15) as client:
-            for sq in search_queries[:3]:
-                try:
-                    resp = await client.get(
-                        "https://zh.wikipedia.org/w/api.php",
-                        params={"action": "query", "list": "search", "srsearch": sq, "format": "json", "srlimit": "1"},
-                        headers={"User-Agent": "GaokaoAdvisor/2.0"},
-                    )
-                    data = resp.json()
-                    results = data.get("query", {}).get("search", [])
-                    if results:
-                        snippet = results[0].get("snippet", "")[:200]
-                        snippet = snippet.replace('<span class="searchmatch">','').replace('</span>','')
-                        market_data += f"- {sq}: {snippet}\n"
-                except:
-                    pass
+                search_queries.append(f"{cat} 2026 就业 薪资")
+        from app.searcher import search_market
+        market_data = await search_market(search_queries)
+        if market_data:
+            market_section = f"\n【2026年最新市场数据】\n以下是实时搜索到的相关专业就业市场信息（请优先使用这些数据进行分析）：\n{market_data}\n"
     except:
         pass
-
-    if market_data:
-        market_section = f"\n【实时市场数据】\n以下是搜索到的相关专业最新市场信息（2026年）：\n{market_data}\n请结合以上最新数据做出分析。\n"
-    else:
-        market_section = ""
 
     prompt = f"""你像张雪峰老师一样——数据驱动、就业导向、说人话、不给模糊建议。这是你的工作方式：
 
