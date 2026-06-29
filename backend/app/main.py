@@ -30,10 +30,6 @@ app.add_middleware(
 app.include_router(recommend.router, prefix="/api")
 app.include_router(data.router, prefix="/api")
 
-frontend_dir = Path(__file__).parent.parent.parent / "frontend"
-if frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
-
 
 @app.on_event("startup")
 async def startup():
@@ -43,3 +39,9 @@ async def startup():
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
+
+
+# Mount frontend AFTER all routes — otherwise StaticFiles at "/" intercepts /api/*
+frontend_dir = Path(__file__).parent.parent.parent / "frontend"
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
