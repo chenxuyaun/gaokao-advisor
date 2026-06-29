@@ -230,7 +230,7 @@ function render(data) {
 
     // Tags
     let tagsHtml = '';
-    if (m.civil_service_note) tagsHtml += `<span class="tag tag-blue">��️ 考公：${m.civil_service_note}</span>`;
+    if (m.civil_service_note) tagsHtml += `<span class="tag tag-blue">🏛️ 考公：${m.civil_service_note}</span>`;
     if (m.avg_salary) tagsHtml += `<span class="tag">💰 ${(m.avg_salary/10000).toFixed(1)}万/年</span>`;
     if (m.employment_rate) {
       let rate = (m.employment_rate*100).toFixed(0);
