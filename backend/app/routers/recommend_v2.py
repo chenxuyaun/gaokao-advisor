@@ -7,7 +7,7 @@ from app.models import (
     RecommendV2Request, RecommendV2Response,
     MajorGroup, SchoolInfo
 )
-from app.engine import estimate_rank, get_cutoff_scores
+from app.engine import estimate_rank, match_majors, get_cutoff_scores
 
 router = APIRouter()
 

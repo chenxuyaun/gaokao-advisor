@@ -136,11 +136,32 @@ async def compare_majors(req: CompareRequest):
     """Compare 2-3 majors across key dimensions."""
     search_data = await search_market([f"{m} 就业 2026" for m in req.majors[:3]], limit=3)
     
+    # 数据库查询这些专业的相关学校录取数据
+    db_ref = ""
+    try:
+        from app.database import get_db as db_get
+        db = await db_get()
+        for m in req.majors[:3]:
+            cur = await db.execute("""
+                SELECT u.name, ar.min_score, ar.min_rank, ar.target_province
+                FROM admission_records ar JOIN universities u ON ar.university_id = u.id
+                WHERE ar.major_category LIKE ? AND ar.target_province = ? AND ar.year = 2025
+                ORDER BY ar.min_rank ASC LIMIT 3
+            """, [f"%{m}%", req.province])
+            rows = await cur.fetchall()
+            if rows:
+                refs = [f"{r[0]}({r[1]}分/{r[2]}名)" for r in rows]
+                db_ref += f"  {m}在{req.province}的录取数据：{'、'.join(refs)}\n"
+        await db.close()
+    except:
+        pass
+    
     prompt = f"""你是高考志愿分析专家。请对比以下专业，从多个维度给出客观分析。
 
 省份：{req.province} {req.category}，{req.score}分
 对比专业：{"、".join(req.majors)}
 
+{db_ref}
 搜索到的参考数据：
 {search_data if search_data else "（无实时数据，请基于你的知识回答）"}
 
