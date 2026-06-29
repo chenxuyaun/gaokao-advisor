@@ -28,16 +28,13 @@
     .btn:active { background:#1d4ed8; transform:scale(0.97); }
 
     .disclaimer { font-size:11px; color:var(--amber); background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:8px 10px; margin-bottom:12px; line-height:1.4; }
-
     .loading { text-align:center; padding:24px; display:none; }
     .loading.show { display:block; }
     .spinner { width:24px; height:24px; border:3px solid #e5e7eb; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 6px; }
     @keyframes spin { to{transform:rotate(360deg);} }
-
     .ai-box { background:linear-gradient(135deg,#eff6ff,#f0f9ff); border:1px solid #bfdbfe; border-radius:var(--radius); padding:12px 14px; margin-bottom:12px; }
     .ai-box h3 { font-size:14px; color:var(--blue); margin-bottom:4px; display:flex; align-items:center; gap:4px; }
     .ai-box .ai-text { font-size:13px; color:#334155; line-height:1.7; }
-
     .rank-bar { font-size:12px; color:var(--muted); text-align:center; padding:6px 0; }
 
     .major-card { background:var(--card); border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:8px; overflow:hidden; }
@@ -54,17 +51,14 @@
     .tag-green { background:#dcfce7; color:#166534; }
     .tag-blue { background:#eff6ff; color:#1e40af; }
     .tag-amber { background:#fffbeb; color:#92400e; }
+    .expand-hint { font-size:11px; color:var(--blue); text-align:center; padding:4px 14px 8px; opacity:.8; cursor:pointer; }
 
-    .expand-hint { font-size:11px; color:var(--blue); text-align:center; padding:4px 14px 8px; opacity:.8; }
-
-    /* Detail panel — WHY recommended */
     .why-panel { display:none; border-top:1px solid #f0f0f0; padding:10px 14px; background:#fafbfc; }
     .why-panel.open { display:block; }
     .why-section { margin-bottom:8px; }
     .why-section h4 { font-size:12px; font-weight:700; color:var(--blue); margin-bottom:3px; }
     .why-section p { font-size:12px; color:#475569; line-height:1.6; }
 
-    /* Schools list */
     .schools { border-top:1px solid #f0f0f0; padding:8px 14px 10px; background:#f9fafb; }
     .school-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13px; border-bottom:1px solid #f5f5f5; flex-wrap:wrap; gap:4px; }
     .school-row:last-child { border-bottom:none; }
@@ -74,9 +68,16 @@
     .tier-steady { background:#fef3c7; color:#92400e; }
     .tier-safe { background:#dcfce7; color:#166534; }
 
+    .result-area { padding:4px 0; }
+    .result-area .ask-loading { text-align:center; padding:8px; font-size:12px; color:var(--muted); }
+    .result-card { padding:10px;border-radius:10px;margin-bottom:6px; }
+    .result-prob-bar { font-family:monospace;font-size:16px;letter-spacing:3px;text-align:center;margin:4px 0; }
+    .result-analysis { font-size:12px;color:#374151;line-height:1.6; }
+    .result-backup { font-size:11px;margin-top:4px; }
+    .result-factors { font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5; }
+
     .empty { text-align:center; padding:40px 16px; color:var(--muted); font-size:14px; }
 
-    /* Ask Q&A Panel */
     .ask-btn { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; font-weight:500; width:100%; margin-top:8px; }
     .ask-btn:active { background:#1d4ed8; }
     .ask-panel { display:none; border-top:1px solid #f0f0f0; padding:10px 14px; background:#f8fafc; }
@@ -91,7 +92,6 @@
     .ask-sources { font-size:10px; color:var(--muted); margin-top:4px; }
     .ask-loading { text-align:center; padding:8px; font-size:12px; color:var(--muted); }
 
-    /* Mobile tweaks */
     @media (max-width: 400px) {
       .app { padding:10px 8px 30px; }
       .form { padding:10px; }
@@ -166,23 +166,19 @@ async function search() {
   const btn = document.getElementById('btn');
   const loading = document.getElementById('loading');
   const results = document.getElementById('results');
-
   const payload = {
     province: document.getElementById('province').value,
     score: parseInt(document.getElementById('score').value),
     category: document.getElementById('category').value,
     subject_combo: document.getElementById('subject').value,
   };
-
   if (!payload.score || payload.score < 100 || payload.score > 750) {
     results.innerHTML = '<div class="empty">请输入有效分数（100-750）</div>';
     return;
   }
-
   btn.disabled = true;
   loading.classList.add('show');
   results.innerHTML = '';
-
   try {
     const resp = await fetch(API + '/recommend-v3', {
       method: 'POST',
@@ -203,32 +199,24 @@ async function search() {
 function render(data) {
   const results = document.getElementById('results');
   let html = '';
-
-  // AI Summary
   if (data.ai_summary) {
-    // Format AI text: bold **text**, newlines
     let aiText = data.ai_summary
       .replace(/\*\*(.+?)\*\*/g, '<b style="color:#1e40af">$1</b>')
       .replace(/\n/g, '<br>');
     html += `<div class="ai-box"><h3>🤖 AI 职业分析</h3><div class="ai-text">${aiText}</div></div>`;
   }
-
   if (data.estimated_rank) {
     html += `<div class="rank-bar">你的位次：全省第 <b>${data.estimated_rank.toLocaleString()}</b> 名${data.cutoff_score ? ' | 本科线 '+data.cutoff_score+'分' : ''}</div>`;
   }
-
   if (!data.majors || data.majors.length === 0) {
     html += '<div class="empty">该分数段暂无可推荐的专业方向</div>';
     results.innerHTML = html;
     return;
   }
-
   for (const m of data.majors) {
     let scoreClass = m.quality_score >= 85 ? 'score-high' : 'score-mid';
     let emoji = m.quality_score >= 95 ? '🔥' : m.quality_score >= 85 ? '⭐' : '👍';
     let scoreLabel = m.quality_score >= 95 ? '强烈推荐' : m.quality_score >= 85 ? '推荐' : '可考虑';
-
-    // Tags
     let tagsHtml = '';
     if (m.civil_service_note) tagsHtml += `<span class="tag tag-blue">🏛️ 考公：${m.civil_service_note}</span>`;
     if (m.avg_salary) tagsHtml += `<span class="tag">💰 ${(m.avg_salary/10000).toFixed(1)}万/年</span>`;
@@ -237,11 +225,7 @@ function render(data) {
       let rateCls = m.employment_rate >= 0.95 ? 'tag-green' : m.employment_rate >= 0.9 ? '' : 'tag-amber';
       tagsHtml += `<span class="tag ${rateCls}">📈 就业率${rate}%</span>`;
     }
-
-    // WHY recommended — build detailed explanation
     let whyHtml = buildWhyPanel(m);
-
-    // Schools
     let schoolsHtml = '';
     for (const s of (m.schools || [])) {
       let tierCls = s.tier === '冲刺' ? 'tier-rush' : s.tier === '稳妥' ? 'tier-steady' : 'tier-safe';
@@ -251,7 +235,6 @@ function render(data) {
         <span class="school-tier ${tierCls}">${s.tier}</span>
       </div>`;
     }
-
     html += `
     <div class="major-card" data-major="${m.major_category.replace(/"/g,'&quot;')}">
       <div class="major-head" onclick="toggleCard(this)">
@@ -276,24 +259,17 @@ function render(data) {
         <button class="ask-btn" style="margin-top:6px;background:#059669;" onclick="submitAsk(this)">🤖 让AI回答</button>
         <div class="ask-answers"></div>
       </div>
-    </div>
-    `;
+    </div>`;
   }
-
   results.innerHTML = html;
 }
 
 function buildWhyPanel(m) {
-  let parts = [];
-
-  // Core reason
   let coreReason = '';
   let qs = m.quality_score;
   if (qs >= 95) coreReason = '这是该分数段就业确定性强、薪资天花板高的方向。';
   else if (qs >= 85) coreReason = '综合就业率、薪资和考公前景来看，性价比较高。';
   else coreReason = '有一定就业保障，但建议结合个人兴趣和家庭情况综合考虑。';
-
-  // Employment analysis
   let empAnalysis = '';
   if (m.employment_rate && m.avg_salary) {
     if (m.employment_rate >= 0.95 && m.avg_salary >= 120000) {
@@ -304,8 +280,6 @@ function buildWhyPanel(m) {
       empAnalysis = `就业率${(m.employment_rate*100).toFixed(0)}%，需要注意行业波动风险。`;
     }
   }
-
-  // 考公 analysis
   let civilAnalysis = '';
   if (m.civil_service_note) {
     let departments = m.civil_service_note;
@@ -319,24 +293,15 @@ function buildWhyPanel(m) {
       civilAnalysis = `考公可报考${departments}等对口单位。`;
     }
   }
-
-  // Growth outlook
   let growthAnalysis = m.growth_note || '';
-  if (m.career_path) {
-    growthAnalysis += ` 就业方向：${m.career_path}。`;
-  }
-  if (m.zhang_xuefeng_comment) {
-    growthAnalysis += ` 点评：${m.zhang_xuefeng_comment}`;
-  }
-
-  // Risk/pitfall if applicable
+  if (m.career_path) growthAnalysis += ` 就业方向：${m.career_path}。`;
+  if (m.zhang_xuefeng_comment) growthAnalysis += ` 点评：${m.zhang_xuefeng_comment}`;
   let riskAnalysis = '';
   if (m.major_category.includes('环境') || m.major_category.includes('材料')) {
     riskAnalysis = '⚠️ 注意：该方向本科就业薪资偏低，建议做好读研准备。行业受政策影响较大。';
   } else if (m.major_category.includes('生物')) {
     riskAnalysis = '⚠️ 注意：生物科学本科直接就业较难，主要路径是继续深造读博。不适合急于就业的学生。';
   }
-
   return `
     <div class="why-section"><h4>💡 为什么推荐</h4><p>${coreReason}</p></div>
     <div class="why-section"><h4>📊 就业分析</h4><p>${empAnalysis}</p></div>
@@ -352,24 +317,17 @@ function toggleCard(headEl) {
   if (panel) panel.classList.toggle('open');
 }
 
-// === Ask AI Q&A ===
 const PARENT_QUESTIONS = [
-  '这个专业出来做什么工作？',
-  '毕业后好找工作吗？薪资多少？',
-  '能考公务员吗？什么岗位？',
-  '考研好考吗？保研率多少？',
-  '这个专业对女生友好吗？',
-  '这个专业未来会被AI取代吗？',
-  '哪些学校这个专业比较强？',
-  '毕业后留本地还是去一线城市？',
-  '这个专业需要考研吗？',
-  '考教师资格证有用吗？',
+  '这个专业出来做什么工作？','毕业后好找工作吗？薪资多少？',
+  '能考公务员吗？什么岗位？','考研好考吗？保研率多少？',
+  '这个专业对女生友好吗？','这个专业未来会被AI取代吗？',
+  '哪些学校这个专业比较强？','毕业后留本地还是去一线城市？',
+  '这个专业需要考研吗？','考教师资格证有用吗？',
 ];
 
 async function loadQuestions(card) {
   const chips = card.querySelector('.ask-chips');
   const major = card.getAttribute('data-major');
-  // Try to get AI-generated questions first
   try {
     const params = new URLSearchParams({
       province: document.getElementById('province').value,
@@ -392,7 +350,6 @@ async function loadQuestions(card) {
       }
     }
   } catch (e) {}
-  // Fallback to hardcoded questions
   PARENT_QUESTIONS.forEach(q => {
     const chip = document.createElement('span');
     chip.className = 'ask-chip';
@@ -406,10 +363,8 @@ async function toggleAsk(btn) {
   const card = btn.closest('.major-card');
   const panel = card.querySelector('.ask-panel');
   const chips = panel.querySelector('.ask-chips');
-  
   if (!panel.classList.contains('open')) {
     panel.classList.add('open');
-    // Load questions if empty
     if (!chips.children.length) {
       const card2 = panel.closest('.major-card');
       loadQuestions(card2);
@@ -427,22 +382,17 @@ async function submitAsk(btn) {
   const answersDiv = panel.querySelector('.ask-answers');
   const selected = panel.querySelectorAll('.ask-chip.selected');
   const input = panel.querySelector('.ask-input');
-  
   if (!selected.length && !(input && input.value.trim())) {
     answersDiv.innerHTML = '<div class="ask-answer-item" style="color:var(--amber);">请先选择你想问的问题</div>';
     return;
   }
-  
   const questions = Array.from(selected).map(c => c.textContent);
-  // Also collect custom input
   if (input && input.value.trim()) {
     questions.push(input.value.trim());
     input.value = '';
   }
   const major = card.getAttribute('data-major');
-  
   answersDiv.innerHTML = '<div class="ask-loading">🤖 AI 正在搜索最新信息并分析...</div>';
-  
   try {
     const resp = await fetch('/api/ask', {
       method: 'POST',
@@ -456,10 +406,8 @@ async function submitAsk(btn) {
         questions: questions,
       }),
     });
-    
     if (!resp.ok) throw new Error('请求失败');
     const data = await resp.json();
-    
     let html = '';
     for (const a of data.answers) {
       let sourcesHtml = '';
@@ -478,10 +426,8 @@ async function submitAsk(btn) {
   }
 }
 
-// === Subject combo depends on category ===
 const SUBJECTS_PHYSICS = ['物化生','物化地','物化政','物生地'];
 const SUBJECTS_HISTORY = ['史政地','史政生','史地化'];
-
 const PROVINCES_3PLUS3 = ['北京','天津','上海','浙江','山东','海南'];
 
 function updateSubjects() {
@@ -489,9 +435,7 @@ function updateSubjects() {
   const sel = document.getElementById('subject');
   sel.innerHTML = '';
   if (cat === '综合') {
-    // 3+3 reform: more subject combos available
-    const allSubjects = ['物化生','物化政','物化地','物生地','物生政','物政地','史政地','史政生','史地化'];
-    allSubjects.forEach(s => {
+    ['物化生','物化政','物化地','物生地','物生政','物政地','史政地','史政生','史地化'].forEach(s => {
       const opt = document.createElement('option');
       opt.value = s; opt.textContent = s;
       sel.appendChild(opt);
@@ -510,14 +454,10 @@ function onProvinceChange() {
   const prov = document.getElementById('province').value;
   const cat = document.getElementById('category');
   if (PROVINCES_3PLUS3.includes(prov)) {
-    // 3+3 province — only 综合
     if (cat.options.length === 0 || cat.options[0].value !== '综合') {
       cat.innerHTML = '<option value="综合" selected>综合</option>';
-    } else {
-      cat.value = '综合';
-    }
+    } else { cat.value = '综合'; }
   } else {
-    // 3+1+2 or traditional — show 物理类/历史类
     if (cat.options.length !== 2 || cat.options[0].value !== '物理类') {
       cat.innerHTML = '<option value="物理类">物理类</option><option value="历史类">历史类</option>';
       cat.value = '物理类';
@@ -550,26 +490,48 @@ async function admitProb(btn, major) {
     const d = await resp.json();
     const p = d.probability || 50;
     const bar = '█'.repeat(Math.floor(p/10)) + '░'.repeat(10-Math.floor(p/10));
+    const bgColor = p>=80 ? '#dcfce7' : p>=50 ? '#fef3c7' : '#fee2e2';
     resultArea.innerHTML = `
-      <div style="font-size:20px;font-weight:700;text-align:center;padding:8px;background:${p>=80?'#dcfce7':p>=50?'#fef3c7':'#fee2e2'};border-radius:8px;">
-        ${p}%<br><span style="font-size:13px;font-weight:400;">${d.tier||''}</span>
+      <div class="result-card" style="background:${bgColor};text-align:center;">
+        <div style="font-size:22px;font-weight:800;">${p}%</div>
+        <div style="font-size:13px;font-weight:500;color:#666;">${d.tier||''}</div>
       </div>
-      <div style="font-family:monospace;font-size:14px;letter-spacing:2px;text-align:center;margin:4px 0;">${bar}</div>
-      <div style="font-size:12px;padding:6px;background:#f9fafb;border-radius:6px;">${d.analysis||''}</div>
-      ${d.backup ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">💡 备选：${d.backup}</div>` : ''}
-      ${d.key_factors ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">关键因素：${d.key_factors.join('、')}</div>` : ''}
+      <div class="result-prob-bar">${bar}</div>
+      <div class="result-analysis">${d.analysis||''}</div>
+      ${d.backup ? `<div class="result-backup" style="color:var(--amber);margin-top:4px;">💡 备选：${d.backup}</div>` : ''}
+      ${d.key_factors ? `<div class="result-factors" style="margin-top:4px;">关键因素：${d.key_factors.join('、')}</div>` : ''}
     `;
+    resultArea.scrollIntoView({behavior:'smooth',block:'nearest'});
   } catch(e) {
     resultArea.innerHTML = `<div class="ask-answer-item" style="color:var(--red);">⚠️ 查询失败：${e.message}</div>`;
   }
 }
 
 async function compareMajor(btn, major) {
-  // Show a modal-like prompt to enter 2nd major
-  const m2 = prompt(`对比「${major}」与哪个专业？\n输入第二个专业名称（如：临床医学）`, '临床医学');
-  if (!m2) return;
   const card = btn.closest('.major-card');
   const resultArea = card.querySelector('.result-area');
+  resultArea.innerHTML = `
+    <div style="padding:10px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:#0891b2;">📋 对比「${major}」与哪个专业？</div>
+      <div style="display:flex;gap:6px;">
+        <input id="cmp-inp" type="text" value="计算机科学与技术"
+          placeholder="输入专业名称…"
+          style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+        <button class="btn" style="padding:8px 18px;background:#0891b2;flex-shrink:0;"
+          onclick="doCompare(this,'${major}')">对比</button>
+      </div>
+    </div>`;
+  const inp = resultArea.querySelector('#cmp-inp');
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCompare(inp.parentElement.querySelector('button'), major); });
+}
+
+async function doCompare(btn, major) {
+  const card = btn.closest('.major-card');
+  const resultArea = card.querySelector('.result-area');
+  const input = resultArea.querySelector('#cmp-inp');
+  const m2 = input ? input.value.trim() : '';
+  if (!m2) return;
   resultArea.innerHTML = '<div class="ask-loading">📋 AI 正在对比分析...</div>';
   try {
     const resp = await fetch('/api/ai/compare', {
@@ -583,31 +545,40 @@ async function compareMajor(btn, major) {
       }),
     });
     const d = await resp.json();
-    let html = '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">📋 专业对比：' + major + ' vs ' + m2 + '</div>';
+    let html = '<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#0891b2;">📋 专业对比：' + major + ' vs ' + m2 + '</div>';
     if (d.dimensions && d.majors) {
-      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
-      html += '<tr><th style="text-align:left;padding:2px;border-bottom:1px solid #eee;">维度</th>';
+      html += '<table style="width:100%;font-size:12px;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">';
+      html += '<tr style="background:#f0f9ff;"><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;">维度</th>';
       for (const m of d.majors) {
-        html += `<th style="text-align:center;padding:2px;border-bottom:1px solid #eee;">${m.name}</th>`;
+        html += `<th style="text-align:center;padding:5px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;">${m.name}</th>`;
       }
       html += '</tr>';
       for (let i = 0; i < d.dimensions.length; i++) {
-        html += `<tr><td style="padding:2px;border-bottom:1px solid #f5f5f5;font-size:11px;">${d.dimensions[i]}</td>`;
+        const bg = i % 2 === 0 ? '#fafafa' : '#fff';
+        html += `<tr style="background:${bg};"><td style="padding:4px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;">${d.dimensions[i]}</td>`;
         for (const m of d.majors) {
           const s = m.scores[i] || 0;
           const color = s >= 80 ? '#166534' : s >= 60 ? '#92400e' : '#991b1b';
-          html += `<td style="text-align:center;padding:2px;border-bottom:1px solid #f5f5f5;color:${color};font-weight:600;font-size:11px;">${s}</td>`;
+          const barW = Math.min(s, 100);
+          html += `<td style="text-align:center;padding:4px 4px;border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+              <div style="background:#e5e7eb;border-radius:3px;flex:1;height:8px;max-width:60px;">
+                <div style="background:${color};width:${barW}%;height:8px;border-radius:3px;"></div>
+              </div>
+              <span style="color:${color};font-weight:700;font-size:11px;min-width:18px;">${s}</span>
+            </div>
+          </td>`;
         }
         html += '</tr>';
       }
       html += '</table>';
       for (const m of d.majors) {
-        if (m.summary) html += `<div style="font-size:10px;color:var(--muted);margin-top:2px;">📌 ${m.name}: ${m.summary}</div>`;
+        if (m.summary) html += `<div style="font-size:11px;color:#475569;margin-top:3px;">📌 ${m.name}: ${m.summary}</div>`;
       }
-      if (d.recommendation) html += `<div style="font-size:11px;font-weight:600;margin-top:4px;padding:4px;background:#eff6ff;border-radius:4px;">🏆 ${d.recommendation}</div>`;
+      if (d.recommendation) html += `<div style="font-size:12px;font-weight:600;margin-top:8px;padding:8px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe;color:#1e40af;">🏆 AI推荐：${d.recommendation}</div>`;
     }
-    html += '</div>';
     resultArea.innerHTML = html;
+    resultArea.scrollIntoView({behavior:'smooth',block:'nearest'});
   } catch(e) {
     resultArea.innerHTML = `<div class="empty" style="font-size:12px;">⚠️ 对比失败：${e.message}</div>`;
   }
@@ -629,23 +600,28 @@ async function careerPlan(btn, major) {
       }),
     });
     const d = await resp.json();
-    let html = '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">🗺️ 职业路径规划</div>';
+    let html = '<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#dc2626;">🗺️ 职业路径规划 — ' + major + '</div>';
     if (d.paths) {
       for (const p of d.paths) {
-        html += `<div style="margin-bottom:6px;border:1px solid #e5e7eb;border-radius:6px;padding:6px;background:#f9fafb;">`;
-        html += `<div style="font-weight:600;font-size:12px;margin-bottom:3px;">${p.name}</div>`;
+        html += '<div style="margin-bottom:8px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">';
+        html += `<div style="font-weight:700;font-size:13px;padding:8px 10px;background:#f0fdf4;border-bottom:1px solid #e5e7eb;">${p.name}</div>`;
+        html += '<div style="padding:8px 10px;">';
         if (p.timeline) {
           for (const t of p.timeline) {
-            html += `<div style="font-size:10px;padding:2px 0;border-left:2px solid var(--blue);padding-left:6px;margin:2px 0;">`;
-            html += `<span style="font-weight:600;">${t.year}</span> ${t.title}: ${t.content}`;
-            html += `</div>`;
+            html += '<div style="font-size:12px;padding:5px 0 5px 12px;border-left:3px solid var(--blue);margin:4px 0;line-height:1.5;">';
+            html += `<strong style="color:var(--blue);font-size:11px;">${t.year}</strong> <strong>${t.title}</strong>: ${t.content}`;
+            html += '</div>';
           }
         }
-        html += '</div>';
+        if (p.pros && p.pros.length) {
+          html += `<div style="font-size:11px;color:#166534;margin-top:6px;padding-top:4px;border-top:1px dashed #e5e7eb;">✅ 优势: ${p.pros.join('、')}</div>`;
+        }
+        html += '</div></div>';
       }
     }
-    if (d.summary) html += `<div style="font-size:11px;font-weight:600;padding:6px;background:#fffbeb;border-radius:4px;">💡 ${d.summary}</div>`;
+    if (d.summary) html += `<div style="font-size:12px;font-weight:600;padding:8px 10px;background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;margin-top:4px;">💡 ${d.summary}</div>`;
     resultArea.innerHTML = html;
+    resultArea.scrollIntoView({behavior:'smooth',block:'nearest'});
   } catch(e) {
     resultArea.innerHTML = `<div class="empty" style="font-size:12px;">⚠️ 路径规划失败：${e.message}</div>`;
   }
