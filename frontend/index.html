@@ -265,9 +265,10 @@ function render(data) {
       <button class="ask-btn" onclick="event.stopPropagation();toggleAsk(this)">💬 有疑问？问AI</button>
       <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
         <button class="ask-btn" style="flex:1;background:#7c3aed;font-size:11px;padding:6px;" onclick="event.stopPropagation();admitProb(this,'${m.major_category}')">📊 录取概率</button>
-        <button class="ask-btn" style="flex:1;background:#0891b2;font-size:11px;padding:6px;" onclick="event.stopPropagation();compareMajor('${m.major_category}')">📋 对比专业</button>
-        <button class="ask-btn" style="flex:1;background:#dc2626;font-size:11px;padding:6px;" onclick="event.stopPropagation();careerPlan('${m.major_category}')">🗺️ 路径规划</button>
+        <button class="ask-btn" style="flex:1;background:#0891b2;font-size:11px;padding:6px;" onclick="event.stopPropagation();compareMajor(this,'${m.major_category}')">📋 对比专业</button>
+        <button class="ask-btn" style="flex:1;background:#dc2626;font-size:11px;padding:6px;" onclick="event.stopPropagation();careerPlan(this,'${m.major_category}')">🗺️ 路径规划</button>
       </div>
+      <div class="result-area" style="margin-top:6px;"></div>
       <div class="ask-panel">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">点选常用问题，或输入你想问的：</div>
         <div class="ask-chips"></div>
@@ -531,9 +532,8 @@ window.addEventListener('DOMContentLoaded', () => { updateSubjects(); search(); 
 // === AI Feature Buttons ===
 async function admitProb(btn, major) {
   const card = btn.closest('.major-card');
-  const panel = card.querySelector('.ask-panel');
-  const answersDiv = panel.querySelector('.ask-answers');
-  answersDiv.innerHTML = '<div class="ask-loading">📊 AI 正在估算录取概率...</div>';
+  const resultArea = card.querySelector('.result-area');
+  resultArea.innerHTML = '<div class="ask-loading">📊 AI 正在估算录取概率...</div>';
   try {
     const resp = await fetch('/api/ai/probability', {
       method: 'POST',
@@ -550,7 +550,7 @@ async function admitProb(btn, major) {
     const d = await resp.json();
     const p = d.probability || 50;
     const bar = '█'.repeat(Math.floor(p/10)) + '░'.repeat(10-Math.floor(p/10));
-    answersDiv.innerHTML = `
+    resultArea.innerHTML = `
       <div style="font-size:20px;font-weight:700;text-align:center;padding:8px;background:${p>=80?'#dcfce7':p>=50?'#fef3c7':'#fee2e2'};border-radius:8px;">
         ${p}%<br><span style="font-size:13px;font-weight:400;">${d.tier||''}</span>
       </div>
@@ -560,16 +560,17 @@ async function admitProb(btn, major) {
       ${d.key_factors ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">关键因素：${d.key_factors.join('、')}</div>` : ''}
     `;
   } catch(e) {
-    answersDiv.innerHTML = `<div class="ask-answer-item" style="color:var(--red);">⚠️ 查询失败：${e.message}</div>`;
+    resultArea.innerHTML = `<div class="ask-answer-item" style="color:var(--red);">⚠️ 查询失败：${e.message}</div>`;
   }
 }
 
-async function compareMajor(major) {
+async function compareMajor(btn, major) {
   // Show a modal-like prompt to enter 2nd major
   const m2 = prompt(`对比「${major}」与哪个专业？\n输入第二个专业名称（如：临床医学）`, '临床医学');
   if (!m2) return;
-  const results = document.getElementById('results');
-  results.innerHTML = '<div class="loading show"><div class="spinner"></div>📋 AI 正在对比分析...</div>';
+  const card = btn.closest('.major-card');
+  const resultArea = card.querySelector('.result-area');
+  resultArea.innerHTML = '<div class="ask-loading">📋 AI 正在对比分析...</div>';
   try {
     const resp = await fetch('/api/ai/compare', {
       method: 'POST',
@@ -582,39 +583,40 @@ async function compareMajor(major) {
       }),
     });
     const d = await resp.json();
-    let html = '<div class="form" style="margin-top:8px;"><h3 style="font-size:15px;margin-bottom:8px;">📋 专业对比</h3>';
+    let html = '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">📋 专业对比：' + major + ' vs ' + m2 + '</div>';
     if (d.dimensions && d.majors) {
-      html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-      html += '<tr><th style="text-align:left;padding:4px;border-bottom:1px solid #eee;">维度</th>';
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
+      html += '<tr><th style="text-align:left;padding:2px;border-bottom:1px solid #eee;">维度</th>';
       for (const m of d.majors) {
-        html += `<th style="text-align:center;padding:4px;border-bottom:1px solid #eee;">${m.name}</th>`;
+        html += `<th style="text-align:center;padding:2px;border-bottom:1px solid #eee;">${m.name}</th>`;
       }
       html += '</tr>';
       for (let i = 0; i < d.dimensions.length; i++) {
-        html += `<tr><td style="padding:4px;border-bottom:1px solid #f5f5f5;">${d.dimensions[i]}</td>`;
+        html += `<tr><td style="padding:2px;border-bottom:1px solid #f5f5f5;font-size:11px;">${d.dimensions[i]}</td>`;
         for (const m of d.majors) {
           const s = m.scores[i] || 0;
           const color = s >= 80 ? '#166534' : s >= 60 ? '#92400e' : '#991b1b';
-          html += `<td style="text-align:center;padding:4px;border-bottom:1px solid #f5f5f5;color:${color};font-weight:600;">${s}</td>`;
+          html += `<td style="text-align:center;padding:2px;border-bottom:1px solid #f5f5f5;color:${color};font-weight:600;font-size:11px;">${s}</td>`;
         }
         html += '</tr>';
       }
       html += '</table>';
       for (const m of d.majors) {
-        if (m.summary) html += `<div style="font-size:11px;color:var(--muted);margin-top:4px;">📌 ${m.name}: ${m.summary}</div>`;
+        if (m.summary) html += `<div style="font-size:10px;color:var(--muted);margin-top:2px;">📌 ${m.name}: ${m.summary}</div>`;
       }
-      if (d.recommendation) html += `<div style="font-size:12px;font-weight:600;margin-top:8px;padding:8px;background:#eff6ff;border-radius:6px;">🏆 ${d.recommendation}</div>`;
+      if (d.recommendation) html += `<div style="font-size:11px;font-weight:600;margin-top:4px;padding:4px;background:#eff6ff;border-radius:4px;">🏆 ${d.recommendation}</div>`;
     }
     html += '</div>';
-    results.innerHTML += html;
+    resultArea.innerHTML = html;
   } catch(e) {
-    results.innerHTML += `<div class="empty">⚠️ 对比失败：${e.message}</div>`;
+    resultArea.innerHTML = `<div class="empty" style="font-size:12px;">⚠️ 对比失败：${e.message}</div>`;
   }
 }
 
-async function careerPlan(major) {
-  const results = document.getElementById('results');
-  results.innerHTML += '<div class="loading show" id="plan-loading"><div class="spinner"></div>🗺️ AI 正在生成职业路径规划...</div>';
+async function careerPlan(btn, major) {
+  const card = btn.closest('.major-card');
+  const resultArea = card.querySelector('.result-area');
+  resultArea.innerHTML = '<div class="ask-loading">🗺️ AI 正在生成职业路径规划...</div>';
   try {
     const resp = await fetch('/api/ai/career-path', {
       method: 'POST',
@@ -627,15 +629,14 @@ async function careerPlan(major) {
       }),
     });
     const d = await resp.json();
-    document.getElementById('plan-loading')?.remove();
-    let html = '<div class="form" style="margin-top:8px;"><h3 style="font-size:15px;margin-bottom:8px;">🗺️ 职业路径规划</h3>';
+    let html = '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">🗺️ 职业路径规划</div>';
     if (d.paths) {
       for (const p of d.paths) {
-        html += `<div style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;background:#f9fafb;">`;
-        html += `<div style="font-weight:600;font-size:13px;margin-bottom:4px;">${p.name}</div>`;
+        html += `<div style="margin-bottom:6px;border:1px solid #e5e7eb;border-radius:6px;padding:6px;background:#f9fafb;">`;
+        html += `<div style="font-weight:600;font-size:12px;margin-bottom:3px;">${p.name}</div>`;
         if (p.timeline) {
           for (const t of p.timeline) {
-            html += `<div style="font-size:11px;padding:3px 0;border-left:2px solid var(--blue);padding-left:8px;margin:2px 0;">`;
+            html += `<div style="font-size:10px;padding:2px 0;border-left:2px solid var(--blue);padding-left:6px;margin:2px 0;">`;
             html += `<span style="font-weight:600;">${t.year}</span> ${t.title}: ${t.content}`;
             html += `</div>`;
           }
@@ -643,12 +644,10 @@ async function careerPlan(major) {
         html += '</div>';
       }
     }
-    if (d.summary) html += `<div style="font-size:12px;font-weight:600;padding:8px;background:#fffbeb;border-radius:6px;">💡 ${d.summary}</div>`;
-    html += '</div>';
-    results.innerHTML += html;
+    if (d.summary) html += `<div style="font-size:11px;font-weight:600;padding:6px;background:#fffbeb;border-radius:4px;">💡 ${d.summary}</div>`;
+    resultArea.innerHTML = html;
   } catch(e) {
-    document.getElementById('plan-loading')?.remove();
-    results.innerHTML += `<div class="empty">⚠️ 路径规划失败：${e.message}</div>`;
+    resultArea.innerHTML = `<div class="empty" style="font-size:12px;">⚠️ 路径规划失败：${e.message}</div>`;
   }
 }
 </script>
