@@ -122,7 +122,7 @@
       </div>
       <div class="field" style="flex:0.7">
         <label>类别</label>
-        <select id="category"><option value="物理类" selected>物理类</option><option value="历史类">历史类</option></select>
+        <select id="category" onchange="updateSubjects()"><option value="物理类" selected>物理类</option><option value="历史类">历史类</option></select>
       </div>
       <div class="field" style="flex:0.9">
         <label>选科</label>
@@ -420,8 +420,19 @@ async function submitAsk(btn) {
   }
 }
 
+// === Subject combo depends on category ===
+const SUBJECTS_PHYSICS = ['物化生','物化地','物化政','物生地'];
+const SUBJECTS_HISTORY = ['史政地','史政生','史地化'];
+
+function updateSubjects() {
+  const cat = document.getElementById('category').value;
+  const sel = document.getElementById('subject');
+  const subjects = cat === '物理类' ? SUBJECTS_PHYSICS : SUBJECTS_HISTORY;
+  sel.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
 document.getElementById('score').addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
-window.addEventListener('DOMContentLoaded', () => { search(); });
+window.addEventListener('DOMContentLoaded', () => { updateSubjects(); search(); });
 </script>
 </body>
 </html>
