@@ -245,9 +245,10 @@ function render(data) {
       <div class="expand-hint" onclick="toggleCard(this.parentElement.querySelector('.major-head'))">👆 点击查看为什么推荐 & 适合的学校</div>
       <button class="ask-btn" onclick="event.stopPropagation();toggleAsk(this)">💬 有疑问？问AI</button>
       <div class="ask-panel">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">选你想问的（可多选）：</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">点选常用问题，或输入你想问的：</div>
         <div class="ask-chips"></div>
-        <button class="ask-btn" style="margin-top:4px;background:#059669;" onclick="submitAsk(this)">🤖 让AI回答</button>
+        <input class="ask-input" type="text" placeholder="✍️ 自己输入问题…" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-top:6px;">
+        <button class="ask-btn" style="margin-top:6px;background:#059669;" onclick="submitAsk(this)">🤖 让AI回答</button>
         <div class="ask-answers"></div>
       </div>
     </div>
@@ -368,12 +369,18 @@ async function submitAsk(btn) {
   const answersDiv = panel.querySelector('.ask-answers');
   const selected = panel.querySelectorAll('.ask-chip.selected');
   
-  if (!selected.length) {
+  if (!selected.length && !(input && input.value.trim())) {
     answersDiv.innerHTML = '<div class="ask-answer-item" style="color:var(--amber);">请先选择你想问的问题</div>';
     return;
   }
   
   const questions = Array.from(selected).map(c => c.textContent);
+  // Also collect custom input
+  const input = panel.querySelector('.ask-input');
+  if (input && input.value.trim()) {
+    questions.push(input.value.trim());
+    input.value = '';
+  }
   const major = card.getAttribute('data-major');
   
   answersDiv.innerHTML = '<div class="ask-loading">🤖 AI 正在搜索最新信息并分析...</div>';
