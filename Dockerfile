@@ -11,9 +11,9 @@ COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY data/ ./data/
 
-# Initialize database with seed data on first run
-RUN python data/seed_sichuan.py
+# Initialize database with comprehensive seed data
+RUN python data/seed_comprehensive.py
 
-EXPOSE 8082
+EXPOSE 7860
 
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8082"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7860"]

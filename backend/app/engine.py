@@ -79,34 +79,49 @@ def _map_category(major_name: str, full_category: str) -> str:
 
 
 async def estimate_rank(province: str, score: int, category: str, year: int = 2026) -> Optional[int]:
-    """Estimate province rank from score using 一分一段表."""
+    """Estimate province rank from score using 一分一段表 with linear interpolation."""
     db = await get_db()
     try:
+        # Exact match first
         cursor = await db.execute(
             """SELECT cumulative_count FROM score_segments
                WHERE province_name = ? AND year = ? AND category = ? AND score = ?""",
             (province, year, category, score)
         )
         row = await cursor.fetchone()
-        if row:
+        if row and row[0] is not None:
             return row[0]
-        for delta in range(1, 6):
-            cursor = await db.execute(
-                """SELECT cumulative_count FROM score_segments
-                   WHERE province_name = ? AND year = ? AND category = ? AND score = ?""",
-                (province, year, category, score + delta)
-            )
-            row = await cursor.fetchone()
-            if row:
-                return row[0]
-            cursor = await db.execute(
-                """SELECT cumulative_count FROM score_segments
-                   WHERE province_name = ? AND year = ? AND category = ? AND score = ?""",
-                (province, year, category, score - delta)
-            )
-            row = await cursor.fetchone()
-            if row:
-                return row[0]
+
+        # Get nearest upper and lower points for interpolation
+        cursor = await db.execute(
+            """SELECT score, cumulative_count FROM score_segments
+               WHERE province_name = ? AND year = ? AND category = ? AND score >= ?
+               AND cumulative_count IS NOT NULL
+               ORDER BY score ASC LIMIT 1""",
+            (province, year, category, score)
+        )
+        upper = await cursor.fetchone()
+
+        cursor = await db.execute(
+            """SELECT score, cumulative_count FROM score_segments
+               WHERE province_name = ? AND year = ? AND category = ? AND score <= ?
+               AND cumulative_count IS NOT NULL
+               ORDER BY score DESC LIMIT 1""",
+            (province, year, category, score)
+        )
+        lower = await cursor.fetchone()
+
+        if upper and lower:
+            if upper[0] == lower[0]:
+                return lower[1]
+            # Linear interpolation
+            ratio = (score - lower[0]) / (upper[0] - lower[0])
+            est = int(lower[1] + (upper[1] - lower[1]) * ratio)
+            return est
+        elif upper:
+            return upper[1]
+        elif lower:
+            return lower[1]
         return None
     finally:
         await db.close()

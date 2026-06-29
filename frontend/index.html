@@ -114,7 +114,26 @@
     <div class="form-row">
       <div class="field" style="flex:0.7">
         <label>省份</label>
-        <select id="province"><option value="四川" selected>四川</option></select>
+        <select id="province" onchange="onProvinceChange()">
+          <optgroup label="☀️ 3+3 改革省份（综合）">
+            <option value="北京">北京</option><option value="天津">天津</option><option value="上海">上海</option>
+            <option value="浙江">浙江</option><option value="山东">山东</option><option value="海南">海南</option>
+          </optgroup>
+          <optgroup label="📍 3+1+2 改革省份（物理类/历史类）">
+            <option value="广东">广东</option><option value="江苏">江苏</option><option value="湖北">湖北</option>
+            <option value="湖南">湖南</option><option value="河北">河北</option><option value="福建">福建</option>
+            <option value="安徽">安徽</option><option value="江西">江西</option><option value="辽宁">辽宁</option>
+            <option value="重庆">重庆</option><option value="贵州">贵州</option><option value="云南">云南</option>
+            <option value="山西">山西</option><option value="陕西">陕西</option><option value="甘肃">甘肃</option>
+            <option value="黑龙江">黑龙江</option><option value="吉林">吉林</option>
+            <option value="广西">广西</option><option value="内蒙古">内蒙古</option>
+          </optgroup>
+          <optgroup label="🏔️ 传统文理分省">
+            <option value="河南">河南</option><option value="四川" selected>四川</option>
+            <option value="新疆">新疆</option><option value="宁夏">宁夏</option>
+            <option value="青海">青海</option><option value="西藏">西藏</option>
+          </optgroup>
+        </select>
       </div>
       <div class="field" style="flex:0.9">
         <label>高考分数</label>
@@ -424,11 +443,48 @@ async function submitAsk(btn) {
 const SUBJECTS_PHYSICS = ['物化生','物化地','物化政','物生地'];
 const SUBJECTS_HISTORY = ['史政地','史政生','史地化'];
 
+const PROVINCES_3PLUS3 = ['北京','天津','上海','浙江','山东','海南'];
+
 function updateSubjects() {
   const cat = document.getElementById('category').value;
   const sel = document.getElementById('subject');
-  const subjects = cat === '物理类' ? SUBJECTS_PHYSICS : SUBJECTS_HISTORY;
-  sel.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+  sel.innerHTML = '';
+  if (cat === '综合') {
+    // 3+3 reform: more subject combos available
+    const allSubjects = ['物化生','物化政','物化地','物生地','物生政','物政地','史政地','史政生','史地化'];
+    allSubjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  } else {
+    const subjects = cat === '物理类' ? SUBJECTS_PHYSICS : SUBJECTS_HISTORY;
+    subjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function onProvinceChange() {
+  const prov = document.getElementById('province').value;
+  const cat = document.getElementById('category');
+  if (PROVINCES_3PLUS3.includes(prov)) {
+    // 3+3 province — only 综合
+    if (cat.options.length === 0 || cat.options[0].value !== '综合') {
+      cat.innerHTML = '<option value="综合" selected>综合</option>';
+    } else {
+      cat.value = '综合';
+    }
+  } else {
+    // 3+1+2 or traditional — show 物理类/历史类
+    if (cat.options.length !== 2 || cat.options[0].value !== '物理类') {
+      cat.innerHTML = '<option value="物理类">物理类</option><option value="历史类">历史类</option>';
+      cat.value = '物理类';
+    }
+  }
+  updateSubjects();
 }
 
 document.getElementById('score').addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
