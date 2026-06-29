@@ -48,52 +48,55 @@ class AskResponse(BaseModel):
 
 
 async def search_web(query: str, limit: int = 3) -> list:
-    """Search web — try SearXNG first (local), fallback to DuckDuckGo (free, no key)."""
-    # Try SearXNG first (local)
+    """Search web FREE — Wikipedia + DuckDuckGo HTML, zero API keys, works on HF Space."""
+
+    # 1. Wikipedia (free, no key, works globally, great for education)
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                f"{SEARXNG_URL}/search",
-                params={"q": query, "format": "json", "categories": "general"},
+                "https://zh.wikipedia.org/w/api.php",
+                params={
+                    "action": "query", "list": "search",
+                    "srsearch": query, "format": "json",
+                    "srlimit": str(limit),
+                },
+                headers={"User-Agent": "GaokaoAdvisor/2.0"},
             )
             data = resp.json()
             results = []
-            for r in data.get("results", [])[:limit]:
+            for r in data.get("query", {}).get("search", [])[:limit]:
                 results.append({
                     "title": r.get("title", ""),
-                    "url": r.get("url", ""),
-                    "snippet": r.get("content", "")[:300],
+                    "url": f"https://zh.wikipedia.org/wiki/{r['title'].replace(' ','_')}",
+                    "snippet": r.get("snippet", "")[:300].replace('<span class="searchmatch">','').replace('</span>',''),
                 })
             if results:
                 return results
     except Exception:
         pass
 
-    # Fallback: DuckDuckGo free search
+    # 2. DuckDuckGo HTML search (free, no API key)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                "https://api.duckduckgo.com/",
-                params={"q": query, "format": "json", "no_html": 1, "skip_disambig": 1},
-                headers={"User-Agent": "GaokaoAdvisor/2.0"},
+                "https://html.duckduckgo.com/html/",
+                params={"q": query},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
             )
-            data = resp.json()
+            text = resp.text
+            # Parse DDG HTML results
             results = []
-            # DuckDuckGo Instant Answer
-            if data.get("AbstractText"):
+            import re
+            # Extract result links and snippets
+            links = re.findall(r'<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>([^<]+)</a>', text)
+            snippets = re.findall(r'<a class="result__snippet"[^>]*>([^<]+)</a>', text)
+            for i, (url, title) in enumerate(links[:limit]):
+                snippet = snippets[i] if i < len(snippets) else ""
                 results.append({
-                    "title": data.get("AbstractSource", "DuckDuckGo"),
-                    "url": data.get("AbstractURL", ""),
-                    "snippet": data["AbstractText"][:300],
+                    "title": title,
+                    "url": url,
+                    "snippet": snippet[:300],
                 })
-            # Related topics
-            for t in data.get("RelatedTopics", [])[:limit - len(results)]:
-                if isinstance(t, dict) and "Text" in t:
-                    results.append({
-                        "title": t.get("FirstURL", ""),
-                        "url": t.get("FirstURL", ""),
-                        "snippet": t["Text"][:200],
-                    })
             if results:
                 return results
     except Exception:
