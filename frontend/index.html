@@ -2,93 +2,114 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>高考志愿顾问</title>
   <style>
     :root {
       --bg: #fafafa; --card: #fff; --text: #1a1a1a; --muted: #888;
       --blue: #2563eb; --green: #059669; --red: #dc2626; --amber: #d97706;
-      --radius: 10px;
+      --radius: 12px;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
-    .app { max-width:600px; margin:0 auto; padding:20px 16px 40px; }
+    body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-tap-highlight-color:transparent; }
+    .app { max-width:640px; margin:0 auto; padding:16px 12px 40px; }
 
-    .header { text-align:center; padding:20px 0; }
-    .header h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
+    .header { text-align:center; padding:16px 0 8px; }
+    .header h1 { font-size:clamp(18px,5vw,22px); font-weight:700; margin-bottom:2px; }
     .header p { font-size:13px; color:var(--muted); }
 
-    .form { background:var(--card); border-radius:var(--radius); padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:16px; }
-    .form-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
-    .field { flex:1; min-width:80px; }
-    .field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:3px; }
-    .field select, .field input { width:100%; padding:8px 10px; font-size:15px; border:1px solid #ddd; border-radius:6px; background:var(--card); }
+    .form { background:var(--card); border-radius:var(--radius); padding:14px; box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:12px; }
+    .form-row { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-end; }
+    .field { flex:1; min-width:60px; }
+    .field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:2px; }
+    .field select, .field input { width:100%; padding:10px 8px; font-size:15px; border:1px solid #ddd; border-radius:8px; background:var(--card); -webkit-appearance:none; }
     .field select:focus, .field input:focus { outline:none; border-color:var(--blue); }
-    .btn { padding:9px 20px; font-size:15px; font-weight:600; background:var(--blue); color:#fff; border:none; border-radius:6px; cursor:pointer; white-space:nowrap; }
-    .btn:disabled { opacity:.6; }
-    .btn:hover:not(:disabled) { background:#1d4ed8; }
+    .btn { padding:11px 16px; font-size:15px; font-weight:600; background:var(--blue); color:#fff; border:none; border-radius:8px; cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    .btn:active { background:#1d4ed8; transform:scale(0.97); }
 
-    .disclaimer { font-size:11px; color:var(--amber); background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 12px; margin-bottom:16px; line-height:1.5; }
+    .disclaimer { font-size:11px; color:var(--amber); background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:8px 10px; margin-bottom:12px; line-height:1.4; }
 
-    .loading { text-align:center; padding:30px; display:none; }
+    .loading { text-align:center; padding:24px; display:none; }
     .loading.show { display:block; }
-    .spinner { width:24px; height:24px; border:3px solid #e5e7eb; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 8px; }
+    .spinner { width:24px; height:24px; border:3px solid #e5e7eb; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 6px; }
     @keyframes spin { to{transform:rotate(360deg);} }
 
-    .ai-box { background:linear-gradient(135deg,#eff6ff,#f0f9ff); border:1px solid #bfdbfe; border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
-    .ai-box h3 { font-size:14px; color:var(--blue); margin-bottom:6px; }
-    .ai-box p { font-size:13px; color:#334155; white-space:pre-line; }
+    .ai-box { background:linear-gradient(135deg,#eff6ff,#f0f9ff); border:1px solid #bfdbfe; border-radius:var(--radius); padding:12px 14px; margin-bottom:12px; }
+    .ai-box h3 { font-size:14px; color:var(--blue); margin-bottom:4px; display:flex; align-items:center; gap:4px; }
+    .ai-box .ai-text { font-size:13px; color:#334155; line-height:1.7; }
 
-    .major-card { background:var(--card); border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:10px; overflow:hidden; cursor:pointer; }
-    .major-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); }
-    .major-head { padding:12px 14px; display:flex; justify-content:space-between; align-items:center; }
-    .major-name { font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; }
+    .rank-bar { font-size:12px; color:var(--muted); text-align:center; padding:6px 0; }
+
+    .major-card { background:var(--card); border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:8px; overflow:hidden; }
+    .major-head { padding:12px 14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
+    .major-head:active { background:#f9fafb; }
+    .major-name { font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
     .major-name .icon { font-size:20px; }
-    .major-score { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    .major-score { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; flex-shrink:0; }
     .score-high { background:#dcfce7; color:#166534; }
     .score-mid { background:#fef3c7; color:#92400e; }
-    .score-low { background:#fee2e2; color:#991b1b; }
-    .major-tags { font-size:11px; color:var(--muted); padding:0 14px 10px; display:flex; flex-wrap:wrap; gap:8px; }
-    .tag { background:#f3f4f6; padding:2px 8px; border-radius:4px; white-space:nowrap; }
+
+    .major-tags { padding:0 14px 8px; display:flex; flex-wrap:wrap; gap:6px; }
+    .tag { font-size:11px; background:#f3f4f6; padding:3px 8px; border-radius:5px; white-space:nowrap; }
     .tag-green { background:#dcfce7; color:#166534; }
     .tag-blue { background:#eff6ff; color:#1e40af; }
+    .tag-amber { background:#fffbeb; color:#92400e; }
 
-    .schools { display:none; border-top:1px solid #f0f0f0; padding:8px 14px 12px; background:#fafbfc; }
-    .schools.open { display:block; }
-    .school-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:13px; border-bottom:1px solid #f5f5f5; }
+    .expand-hint { font-size:11px; color:var(--blue); text-align:center; padding:4px 14px 8px; opacity:.8; }
+
+    /* Detail panel — WHY recommended */
+    .why-panel { display:none; border-top:1px solid #f0f0f0; padding:10px 14px; background:#fafbfc; }
+    .why-panel.open { display:block; }
+    .why-section { margin-bottom:8px; }
+    .why-section h4 { font-size:12px; font-weight:700; color:var(--blue); margin-bottom:3px; }
+    .why-section p { font-size:12px; color:#475569; line-height:1.6; }
+
+    /* Schools list */
+    .schools { border-top:1px solid #f0f0f0; padding:8px 14px 10px; background:#f9fafb; }
+    .school-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13px; border-bottom:1px solid #f5f5f5; flex-wrap:wrap; gap:4px; }
     .school-row:last-child { border-bottom:none; }
     .school-name { font-weight:500; }
-    .school-tier { font-size:10px; padding:1px 6px; border-radius:3px; font-weight:600; }
+    .school-tier { font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600; flex-shrink:0; }
     .tier-rush { background:#fee2e2; color:#991b1b; }
     .tier-steady { background:#fef3c7; color:#92400e; }
     .tier-safe { background:#dcfce7; color:#166534; }
 
-    .expand-hint { font-size:11px; color:var(--blue); text-align:right; padding-right:14px; padding-bottom:6px; }
-    .empty { text-align:center; padding:40px; color:var(--muted); font-size:14px; }
+    .empty { text-align:center; padding:40px 16px; color:var(--muted); font-size:14px; }
+
+    /* Mobile tweaks */
+    @media (max-width: 400px) {
+      .app { padding:10px 8px 30px; }
+      .form { padding:10px; }
+      .form-row { gap:4px; }
+      .field { min-width:50px; }
+      .field select, .field input { padding:8px 6px; font-size:14px; }
+      .btn { padding:10px 12px; font-size:14px; }
+      .major-name { font-size:14px; }
+    }
   </style>
 </head>
 <body>
 <div class="app">
   <div class="header">
     <h1>🎓 高考志愿顾问</h1>
-    <p>输入分数，看值得读的专业</p>
+    <p>输入分数，看值得读的专业 — AI帮你分析为什么值得读</p>
   </div>
 
   <div class="form">
     <div class="form-row">
-      <div class="field" style="flex:0.8">
+      <div class="field" style="flex:0.7">
         <label>省份</label>
         <select id="province"><option value="四川" selected>四川</option></select>
       </div>
-      <div class="field" style="flex:1">
+      <div class="field" style="flex:0.9">
         <label>高考分数</label>
-        <input type="number" id="score" value="591" min="100" max="750" autofocus>
+        <input type="number" id="score" value="591" min="100" max="750" inputmode="numeric" autofocus>
       </div>
-      <div class="field" style="flex:0.8">
+      <div class="field" style="flex:0.7">
         <label>类别</label>
         <select id="category"><option value="物理类" selected>物理类</option><option value="历史类">历史类</option></select>
       </div>
-      <div class="field" style="flex:1">
+      <div class="field" style="flex:0.9">
         <label>选科</label>
         <select id="subject"><option value="物化生" selected>物化生</option><option value="物化地">物化地</option><option value="物化政">物化政</option><option value="物生地">物生地</option><option value="史政地">史政地</option></select>
       </div>
@@ -97,10 +118,10 @@
   </div>
 
   <div class="disclaimer">
-    ⚠️ 基于2025年历史录取数据推算，2026年分数线会波动。仅供参考，最终请以省教育考试院官方为准。
+    ⚠️ 基于2025年历史录取数据推算。仅供参考，最终请以省教育考试院官方为准。
   </div>
 
-  <div class="loading" id="loading"><div class="spinner"></div>分析中...</div>
+  <div class="loading" id="loading"><div class="spinner"></div>AI 正在分析中...</div>
   <div id="results"></div>
 </div>
 
@@ -151,36 +172,46 @@ function render(data) {
 
   // AI Summary
   if (data.ai_summary) {
-    html += `<div class="ai-box"><h3>🤖 AI 职业分析</h3><p>${data.ai_summary}</p></div>`;
+    // Format AI text: bold **text**, newlines
+    let aiText = data.ai_summary
+      .replace(/\*\*(.+?)\*\*/g, '<b style="color:#1e40af">$1</b>')
+      .replace(/\n/g, '<br>');
+    html += `<div class="ai-box"><h3>🤖 AI 职业分析</h3><div class="ai-text">${aiText}</div></div>`;
   }
 
-  // Rank info
   if (data.estimated_rank) {
-    html += `<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0;">你的位次：全省第 <b>${data.estimated_rank.toLocaleString()}</b> 名${data.cutoff_score ? ` | 本科线 ${data.cutoff_score}分` : ''}</div>`;
+    html += `<div class="rank-bar">你的位次：全省第 <b>${data.estimated_rank.toLocaleString()}</b> 名${data.cutoff_score ? ' | 本科线 '+data.cutoff_score+'分' : ''}</div>`;
   }
 
   if (!data.majors || data.majors.length === 0) {
-    html += '<div class="empty">该分数段暂无可推荐的专业方向，请调整分数后重试。</div>';
+    html += '<div class="empty">该分数段暂无可推荐的专业方向</div>';
     results.innerHTML = html;
     return;
   }
 
   for (const m of data.majors) {
-    let scoreClass = m.quality_score >= 85 ? 'score-high' : m.quality_score >= 70 ? 'score-mid' : 'score-low';
-    let emoji = m.quality_score >= 90 ? '🔥' : m.quality_score >= 80 ? '⭐' : m.quality_score >= 70 ? '👍' : '📌';
+    let scoreClass = m.quality_score >= 85 ? 'score-high' : 'score-mid';
+    let emoji = m.quality_score >= 95 ? '🔥' : m.quality_score >= 85 ? '⭐' : '👍';
+    let scoreLabel = m.quality_score >= 95 ? '强烈推荐' : m.quality_score >= 85 ? '推荐' : '可考虑';
 
+    // Tags
     let tagsHtml = '';
-    if (m.civil_service_note) tagsHtml += `<span class="tag tag-blue">🏛️ ${m.civil_service_note}</span>`;
-    if (m.growth_note) tagsHtml += `<span class="tag tag-green">📈 ${m.growth_note}</span>`;
+    if (m.civil_service_note) tagsHtml += `<span class="tag tag-blue">��️ 考公：${m.civil_service_note}</span>`;
     if (m.avg_salary) tagsHtml += `<span class="tag">💰 ${(m.avg_salary/10000).toFixed(1)}万/年</span>`;
-    if (m.employment_rate && m.employment_rate >= 0.9) tagsHtml += `<span class="tag">✅ 就业率${(m.employment_rate*100).toFixed(0)}%</span>`;
-    if (m.zhang_xuefeng_comment) tagsHtml += `<span class="tag">💬 ${m.zhang_xuefeng_comment}</span>`;
+    if (m.employment_rate) {
+      let rate = (m.employment_rate*100).toFixed(0);
+      let rateCls = m.employment_rate >= 0.95 ? 'tag-green' : m.employment_rate >= 0.9 ? '' : 'tag-amber';
+      tagsHtml += `<span class="tag ${rateCls}">📈 就业率${rate}%</span>`;
+    }
 
+    // WHY recommended — build detailed explanation
+    let whyHtml = buildWhyPanel(m);
+
+    // Schools
     let schoolsHtml = '';
-    const schools = m.schools || [];
-    for (const s of schools) {
+    for (const s of (m.schools || [])) {
       let tierCls = s.tier === '冲刺' ? 'tier-rush' : s.tier === '稳妥' ? 'tier-steady' : 'tier-safe';
-      let levelBadge = s.level ? ` · ${s.level}` : '';
+      let levelBadge = s.level ? ` <span style="color:var(--muted);font-size:10px">${s.level}</span>` : '';
       schoolsHtml += `<div class="school-row">
         <span class="school-name">🏫 ${s.name}${levelBadge} <span style="color:var(--muted);font-size:11px;">${s.city||''} ${s.min_score}分</span></span>
         <span class="school-tier ${tierCls}">${s.tier}</span>
@@ -188,25 +219,88 @@ function render(data) {
     }
 
     html += `
-    <div class="major-card" onclick="this.querySelector('.schools').classList.toggle('open')">
-      <div class="major-head">
+    <div class="major-card">
+      <div class="major-head" onclick="toggleCard(this)">
         <span class="major-name"><span class="icon">${emoji}</span>${m.major_category}</span>
-        <span class="major-score ${scoreClass}">${m.quality_score}分</span>
+        <span class="major-score ${scoreClass}">${m.quality_score}分 · ${scoreLabel}</span>
       </div>
       <div class="major-tags">${tagsHtml}</div>
-      ${schools.length > 0 ? `<div class="expand-hint">▼ 点击查看 ${schools.length} 所院校</div>` : ''}
-      <div class="schools">${schoolsHtml}</div>
-    </div>`;
-  }
-
-  // AI analysis for each major (if available)
-  for (const m of data.majors) {
-    if (m.ai_analysis) {
-      // Insert ai analysis into the card
-    }
+      <div class="why-panel">${whyHtml}</div>
+      ${schoolsHtml ? `<div class="schools">${schoolsHtml}</div>` : ''}
+      <div class="expand-hint" onclick="toggleCard(this.parentElement.querySelector('.major-head'))">👆 点击查看为什么推荐 & 适合的学校</div>
+    `;
   }
 
   results.innerHTML = html;
+}
+
+function buildWhyPanel(m) {
+  let parts = [];
+
+  // Core reason
+  let coreReason = '';
+  let qs = m.quality_score;
+  if (qs >= 95) coreReason = '这是该分数段就业确定性强、薪资天花板高的方向。';
+  else if (qs >= 85) coreReason = '综合就业率、薪资和考公前景来看，性价比较高。';
+  else coreReason = '有一定就业保障，但建议结合个人兴趣和家庭情况综合考虑。';
+
+  // Employment analysis
+  let empAnalysis = '';
+  if (m.employment_rate && m.avg_salary) {
+    if (m.employment_rate >= 0.95 && m.avg_salary >= 120000) {
+      empAnalysis = `就业率高达${(m.employment_rate*100).toFixed(0)}%，5年薪资约${(m.avg_salary/10000).toFixed(0)}万/年。这是一个"越老越值钱"的方向，不像互联网有35岁危机。`;
+    } else if (m.employment_rate >= 0.9) {
+      empAnalysis = `就业率${(m.employment_rate*100).toFixed(0)}%，属于就业确定性较高的方向。`;
+    } else {
+      empAnalysis = `就业率${(m.employment_rate*100).toFixed(0)}%，需要注意行业波动风险。`;
+    }
+  }
+
+  // 考公 analysis
+  let civilAnalysis = '';
+  if (m.civil_service_note) {
+    let departments = m.civil_service_note;
+    if (departments.includes('法院') || departments.includes('检察院')) {
+      civilAnalysis = `考公优势极大！${departments}每年大量招人，专业壁垒高，非对口专业无法报考。但需通过法考。`;
+    } else if (departments.includes('卫健委') || departments.includes('疾控')) {
+      civilAnalysis = `考公可报考${departments}。医学类岗位有专业壁垒，竞争相对较小。`;
+    } else if (departments.includes('财政局') || departments.includes('审计') || departments.includes('税务')) {
+      civilAnalysis = `考公大户！${departments}每年稳定招录，且岗位数量多。`;
+    } else {
+      civilAnalysis = `考公可报考${departments}等对口单位。`;
+    }
+  }
+
+  // Growth outlook
+  let growthAnalysis = m.growth_note || '';
+  if (m.career_path) {
+    growthAnalysis += ` 就业方向：${m.career_path}。`;
+  }
+  if (m.zhang_xuefeng_comment) {
+    growthAnalysis += ` 点评：${m.zhang_xuefeng_comment}`;
+  }
+
+  // Risk/pitfall if applicable
+  let riskAnalysis = '';
+  if (m.major_category.includes('环境') || m.major_category.includes('材料')) {
+    riskAnalysis = '⚠️ 注意：该方向本科就业薪资偏低，建议做好读研准备。行业受政策影响较大。';
+  } else if (m.major_category.includes('生物')) {
+    riskAnalysis = '⚠️ 注意：生物科学本科直接就业较难，主要路径是继续深造读博。不适合急于就业的学生。';
+  }
+
+  return `
+    <div class="why-section"><h4>💡 为什么推荐</h4><p>${coreReason}</p></div>
+    <div class="why-section"><h4>📊 就业分析</h4><p>${empAnalysis}</p></div>
+    ${civilAnalysis ? `<div class="why-section"><h4>🏛️ 考公前景</h4><p>${civilAnalysis}</p></div>` : ''}
+    ${growthAnalysis ? `<div class="why-section"><h4>📈 发展前景</h4><p>${growthAnalysis}</p></div>` : ''}
+    ${riskAnalysis ? `<div class="why-section" style="background:#fff7ed;padding:6px 8px;border-radius:6px;"><h4 style="color:#c2410c;">⚠️ 风险提醒</h4><p style="color:#9a3412;">${riskAnalysis}</p></div>` : ''}
+  `;
+}
+
+function toggleCard(headEl) {
+  const card = headEl.closest('.major-card');
+  const panel = card.querySelector('.why-panel');
+  if (panel) panel.classList.toggle('open');
 }
 
 document.getElementById('score').addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
