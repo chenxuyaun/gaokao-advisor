@@ -76,6 +76,21 @@
 
     .empty { text-align:center; padding:40px 16px; color:var(--muted); font-size:14px; }
 
+    /* Ask Q&A Panel */
+    .ask-btn { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; font-weight:500; width:100%; margin-top:8px; }
+    .ask-btn:active { background:#1d4ed8; }
+    .ask-panel { display:none; border-top:1px solid #f0f0f0; padding:10px 14px; background:#f8fafc; }
+    .ask-panel.open { display:block; }
+    .ask-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .ask-chip { font-size:12px; padding:6px 10px; border:1px solid #ddd; border-radius:16px; background:#fff; cursor:pointer; user-select:none; }
+    .ask-chip.selected { background:var(--blue); color:#fff; border-color:var(--blue); }
+    .ask-answers { margin-top:8px; }
+    .ask-answer-item { background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:6px; border:1px solid #e5e7eb; }
+    .ask-answer-q { font-size:12px; font-weight:600; color:var(--blue); margin-bottom:4px; }
+    .ask-answer-a { font-size:13px; color:#475569; line-height:1.6; }
+    .ask-sources { font-size:10px; color:var(--muted); margin-top:4px; }
+    .ask-loading { text-align:center; padding:8px; font-size:12px; color:var(--muted); }
+
     /* Mobile tweaks */
     @media (max-width: 400px) {
       .app { padding:10px 8px 30px; }
@@ -219,7 +234,7 @@ function render(data) {
     }
 
     html += `
-    <div class="major-card">
+    <div class="major-card" data-major="${m.major_category.replace(/"/g,'&quot;')}">
       <div class="major-head" onclick="toggleCard(this)">
         <span class="major-name"><span class="icon">${emoji}</span>${m.major_category}</span>
         <span class="major-score ${scoreClass}">${m.quality_score}分 · ${scoreLabel}</span>
@@ -228,6 +243,14 @@ function render(data) {
       <div class="why-panel">${whyHtml}</div>
       ${schoolsHtml ? `<div class="schools">${schoolsHtml}</div>` : ''}
       <div class="expand-hint" onclick="toggleCard(this.parentElement.querySelector('.major-head'))">👆 点击查看为什么推荐 & 适合的学校</div>
+      <button class="ask-btn" onclick="event.stopPropagation();toggleAsk(this)">💬 有疑问？问AI</button>
+      <div class="ask-panel">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">选你想问的（可多选）：</div>
+        <div class="ask-chips"></div>
+        <button class="ask-btn" style="margin-top:4px;background:#059669;" onclick="submitAsk(this)">🤖 让AI回答</button>
+        <div class="ask-answers"></div>
+      </div>
+    </div>
     `;
   }
 
@@ -301,6 +324,93 @@ function toggleCard(headEl) {
   const card = headEl.closest('.major-card');
   const panel = card.querySelector('.why-panel');
   if (panel) panel.classList.toggle('open');
+}
+
+// === Ask AI Q&A ===
+const PARENT_QUESTIONS = [
+  '这个专业出来做什么工作？',
+  '毕业后好找工作吗？薪资多少？',
+  '能考公务员吗？什么岗位？',
+  '需要考研吗？不考研能找到工作吗？',
+  '这个专业未来10年会贬值吗？',
+  '这个专业毕业能拿多少钱？5年后呢？',
+  '毕业后能留在大城市吗？',
+  '学费贵不贵？有没有隐形费用？',
+  '适合女生/男生读吗？',
+];
+
+async function toggleAsk(btn) {
+  const panel = btn.nextElementSibling;
+  const chips = panel.querySelector('.ask-chips');
+  
+  if (!panel.classList.contains('open')) {
+    panel.classList.add('open');
+    // Load questions if empty
+    if (!chips.children.length) {
+      PARENT_QUESTIONS.forEach(q => {
+        const chip = document.createElement('span');
+        chip.className = 'ask-chip';
+        chip.textContent = q;
+        chip.onclick = function() { this.classList.toggle('selected'); };
+        chips.appendChild(chip);
+      });
+    }
+    btn.textContent = '💬 收起问答';
+  } else {
+    panel.classList.remove('open');
+    btn.textContent = '💬 有疑问？问AI';
+  }
+}
+
+async function submitAsk(btn) {
+  const panel = btn.parentElement;
+  const card = panel.closest('.major-card');
+  const answersDiv = panel.querySelector('.ask-answers');
+  const selected = panel.querySelectorAll('.ask-chip.selected');
+  
+  if (!selected.length) {
+    answersDiv.innerHTML = '<div class="ask-answer-item" style="color:var(--amber);">请先选择你想问的问题</div>';
+    return;
+  }
+  
+  const questions = Array.from(selected).map(c => c.textContent);
+  const major = card.getAttribute('data-major');
+  
+  answersDiv.innerHTML = '<div class="ask-loading">🤖 AI 正在搜索最新信息并分析...</div>';
+  
+  try {
+    const resp = await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        province: document.getElementById('province').value,
+        score: parseInt(document.getElementById('score').value),
+        category: document.getElementById('category').value,
+        subject_combo: document.getElementById('subject').value,
+        major: major,
+        questions: questions,
+      }),
+    });
+    
+    if (!resp.ok) throw new Error('请求失败');
+    const data = await resp.json();
+    
+    let html = '';
+    for (const a of data.answers) {
+      let sourcesHtml = '';
+      if (a.sources && a.sources.length) {
+        sourcesHtml = '<div class="ask-sources">📎 参考来源：' + a.sources.map(s => `<a href="${s}" target="_blank" style="color:var(--blue);">链接</a>`).join(' | ') + '</div>';
+      }
+      html += `<div class="ask-answer-item">
+        <div class="ask-answer-q">❓ ${a.question}</div>
+        <div class="ask-answer-a">${a.answer.replace(/\n/g,'<br>')}</div>
+        ${sourcesHtml}
+      </div>`;
+    }
+    answersDiv.innerHTML = html;
+  } catch (e) {
+    answersDiv.innerHTML = `<div class="ask-answer-item" style="color:var(--red);">⚠️ ${e.message}</div>`;
+  }
 }
 
 document.getElementById('score').addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
