@@ -404,6 +404,7 @@ async function toggleAsk(btn) {
     panel.classList.add('open');
     // Load questions if empty
     if (!chips.children.length) {
+      const card = panel.closest('.major-card');
       loadQuestions(card);
     }
     btn.textContent = '💬 收起问答';
@@ -427,7 +428,6 @@ async function submitAsk(btn) {
   
   const questions = Array.from(selected).map(c => c.textContent);
   // Also collect custom input
-  input = panel.querySelector('.ask-input');
   if (input && input.value.trim()) {
     questions.push(input.value.trim());
     input.value = '';
