@@ -93,6 +93,7 @@ async def recommend_v3(req: RecommendV2Request):
 
     # === 数据库查询真实匹配的学校 ===
     db_matches = ""
+    db_match_schools = set()  # Track schools found in DB for safety filter
     try:
         from app.database import get_db as db_get
         db = await db_get()
@@ -109,6 +110,7 @@ async def recommend_v3(req: RecommendV2Request):
             grouped = {}
             for r in rows:
                 cat = r[4] or "综合类"
+                db_match_schools.add(r[0].strip())  # Track for safety filter
                 if cat not in grouped:
                     grouped[cat] = []
                 grouped[cat].append(f"{r[0]}({r[2]}分/{r[3]}名)")
@@ -176,26 +178,32 @@ async def recommend_v3(req: RecommendV2Request):
 
             for rec in recs:
                 school_name = rec.get("best_school", "")
-                # SAFETY: verify school exists in admission_records for this province
+                # SAFETY: verify school exists in DB admission data for this province
                 import re
                 clean_name = re.sub(r'[（(][^）)]*[）)]', '', school_name).strip()
-                try:
-                    from app.database import get_db as db_v
-                    dbv = await db_v()
-                    cv = await dbv.execute(
-                        "SELECT u.level, u.city FROM admission_records ar JOIN universities u ON ar.university_id=u.id WHERE ar.target_province=? AND ar.category=? AND u.name LIKE ? LIMIT 1",
-                        [req.province, req.category, f"%{clean_name}%"]
-                    )
-                    row_v = await cv.fetchone()
-                    if not row_v:
-                        print(f"[v3] SKIP (not in {req.province} admissions): {school_name}")
+                
+                # Quick check: was this school in the database matches?
+                in_db_match = any(clean_name in s or s in clean_name for s in db_match_schools)
+                
+                if not in_db_match:
+                    try:
+                        from app.database import get_db as db_v
+                        dbv = await db_v()
+                        cv = await dbv.execute(
+                            "SELECT u.level, u.city FROM admission_records ar JOIN universities u ON ar.university_id=u.id WHERE ar.target_province=? AND ar.category=? AND u.name LIKE ? LIMIT 1",
+                            [req.province, req.category, f"%{clean_name}%"]
+                        )
+                        row_v = await cv.fetchone()
+                        if row_v:
+                            in_db_match = True
+                            school_info = {"level": row_v[0] or "", "city": row_v[1] or ""}
                         await dbv.close()
-                        continue
-                    school_info = {"level": row_v[0] or "", "city": row_v[1] or ""}
-                    await dbv.close()
-                except Exception as e:
-                    print(f"[v3] Safety check error: {e}")
-                    pass
+                    except:
+                        pass
+                
+                if not in_db_match:
+                    print(f"[v3] SKIP (not in DB): {school_name}")
+                    continue
                 
                 # Estimate score from tier + cutoff
                 tier = rec.get("best_school_tier", "稳妥")

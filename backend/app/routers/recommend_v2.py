@@ -194,7 +194,8 @@ async def recommend_v2(req: RecommendV2Request):
         min_quality_score=70,
         max_results=15,
     )
-
+    # match_majors now returns empty (legacy), skip DB matching
+    
     print(f"[v2] Raw matches: {len(matches)} groups")
 
     # Merge fragmented major groups

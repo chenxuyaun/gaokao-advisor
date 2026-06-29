@@ -211,6 +211,28 @@ async def ask_parent_questions(req: AskRequest):
         for s in search_results:
             search_text += f"- {s['title']}: {s['snippet'][:200]}\n"
             sources.append(s["url"])
+    
+    # 数据库查询真实录取数据，防止AI编造
+    db_context = ""
+    try:
+        from app.database import get_db
+        db = await get_db()
+        # 查该学校+专业的录取数据
+        cur = await db.execute("""
+            SELECT u.name, ar.min_score, ar.min_rank, ar.target_province, ar.year
+            FROM admission_records ar JOIN universities u ON ar.university_id = u.id
+            WHERE u.name LIKE ? AND ar.major_category LIKE ?
+            ORDER BY ar.year DESC LIMIT 3
+        """, [f"%{req.school_name or ''}%", f"%{req.major or ''}%"])
+        rows = await cur.fetchall()
+        if rows:
+            refs = []
+            for r in rows:
+                refs.append(f"{r[0]}在{r[3]}{r[4]}年录取{r[1]}分/{r[2]}名")
+            db_context = "【数据库中的真实录取数据】\n" + "\n".join(refs) + "\n"
+        await db.close()
+    except:
+        pass
 
     # Build answers for each question
     answers = []
@@ -228,6 +250,7 @@ async def ask_parent_questions(req: AskRequest):
             continue
         
         search_block = "以下是最新的网络搜索结果供参考：\n" + search_text if search_text else "（无实时搜索结果，请基于你的知识回答）"
+        db_block = f"\n{db_context}\n" if db_context else ""
         
         prompt = f"""你是一位资深高考志愿顾问，正在帮助一位四川家长解答孩子的高考志愿问题。
 
@@ -237,6 +260,7 @@ async def ask_parent_questions(req: AskRequest):
 {hint}
 
 {search_block}
+{db_block}
 
 请用150字以内，用口语化的中文回答。要求：
 1. 说人话，像一个懂行的亲戚在聊天
