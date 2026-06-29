@@ -12,7 +12,7 @@ COPY frontend/ ./frontend/
 COPY data/ ./data/
 
 # Initialize database with comprehensive seed data
-RUN python data/seed_comprehensive.py
+RUN python data/seed_unified.py
 
 EXPOSE 7860
 
