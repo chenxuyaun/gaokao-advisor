@@ -3,6 +3,7 @@ import os, json, httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, List
+from app import knowledge as kb
 
 router = APIRouter()
 
@@ -109,6 +110,16 @@ async def ask_parent_questions(req: AskRequest):
     answers = []
     for question in req.questions:
         hint = QUESTION_HINTS.get(question, "")
+
+        # Check knowledge base first
+        cached = kb.lookup(question, req.major, req.school_name)
+        if cached:
+            answers.append(AskAnswer(
+                question=question,
+                answer=cached["answer"],
+                sources=cached.get("sources"),
+            ))
+            continue
         
         search_block = "以下是最新的网络搜索结果供参考：\n" + search_text if search_text else "（无实时搜索结果，请基于你的知识回答）"
         
@@ -147,6 +158,15 @@ async def ask_parent_questions(req: AskRequest):
                 )
                 data = resp.json()
                 answer = data["choices"][0]["message"]["content"].strip()
+                # Store to knowledge base
+                kb.store(
+                    question=question,
+                    major=req.major,
+                    answer=answer,
+                    school=req.school_name,
+                    sources=sources[:3] if sources else None,
+                    search_snippet=search_text[:500] if search_text else None,
+                )
         except Exception as e:
             answer = f"抱歉，AI分析暂时不可用（{str(e)[:50]}）。建议直接搜索相关学校官网了解详情。"
 
@@ -172,3 +192,9 @@ async def get_question_templates():
             for q in QUESTION_HINTS.keys()
         ]
     }
+
+
+@router.get("/knowledge/stats")
+async def knowledge_stats():
+    """Return knowledge base statistics."""
+    return kb.stats()
