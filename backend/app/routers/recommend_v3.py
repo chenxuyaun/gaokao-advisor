@@ -111,7 +111,7 @@ async def recommend_v3(req: RecommendV2Request):
 请用以下JSON格式返回（只返回JSON）：
 {{
   "recommendations": [
-    {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "risk": "风险提示（30字内）", "tier": "冲刺/稳妥/保底"}}
+    {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "best_school_score": 该校预估录取分, "best_school_tier": "冲刺/稳妥/保底", "risk": "风险提示（30字内）"}}
   ],
   "summary": "给家长的总结建议（100字内，张雪峰风格）"
 }}"""
@@ -145,6 +145,18 @@ async def recommend_v3(req: RecommendV2Request):
             ai_summary = result.get("summary", "")
 
             for rec in recs:
+                # Estimate score from tier + cutoff
+                tier = rec.get("best_school_tier", "稳妥")
+                est_score = batch_cutoff if batch_cutoff else 400
+                if tier == "冲刺":
+                    est_score += 30
+                elif tier == "保底":
+                    est_score -= 20
+                # Prefer AI's estimated score if provided
+                ai_score = rec.get("best_school_score")
+                if ai_score and ai_score > 0:
+                    est_score = ai_score
+                
                 majors.append(MajorGroup(
                     major_category=rec.get("major", "综合类"),
                     quality_score=rec.get("score", 70),
@@ -161,8 +173,9 @@ async def recommend_v3(req: RecommendV2Request):
                     schools=[
                         SchoolInfo(
                             id=0, name=rec.get("best_school", ""),
-                            level="", city="", min_score=0, min_rank=0,
-                            tier=rec.get("tier", "稳妥"), confidence=CONFIDENCE,
+                            level="", city="", min_score=est_score,
+                            min_rank=0,
+                            tier=rec.get("best_school_tier", "稳妥"), confidence=CONFIDENCE,
                         )
                     ] if rec.get("best_school") else [],
                 ))
