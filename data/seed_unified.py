@@ -39,7 +39,27 @@ UNI_TIER = {
 SUBJ_REQ = {"医学":"物化生","工学":"物化","理学":"物化","法学":"不限","管理学":"不限","经济学":"不限","文学":"不限","教育学":"不限","历史学":"史政地","哲学":"不限","农学":"物化生"}
 
 UNI_MAJOR = {"北京大学":"综合类","清华大学":"工科综合","浙江大学":"综合类","复旦大学":"综合类","上海交通大学":"工科综合","南京大学":"综合类","中国科学技术大学":"理科","中国人民大学":"人文社科","哈尔滨工业大学":"工科综合","西安交通大学":"工科综合","武汉大学":"综合类","华中科技大学":"工科医综合","中山大学":"综合类","北京航空航天大学":"航空航天","北京理工大学":"工科综合","同济大学":"土木建筑","南开大学":"综合类","天津大学":"工科综合","东南大学":"工科综合","厦门大学":"综合类","电子科技大学":"电子信息","四川大学":"综合类","华南理工大学":"工科综合","重庆大学":"工科综合","兰州大学":"综合类","北京师范大学":"师范","华东师范大学":"师范","湖南大学":"工科综合","中南大学":"工科医综合","大连理工大学":"工科综合","东北大学":"工科综合","吉林大学":"综合类","山东大学":"综合类","中国海洋大学":"海洋/食品","西北农林科技大学":"农林","中国农业大学":"农林","中央民族大学":"人文社科","北京科技大学":"材料/冶金","北京交通大学":"交通","北京邮电大学":"通信/计算机","西安电子科技大学":"电子信息","南京航空航天大学":"航空航天","南京理工大学":"兵器/机械","华北电力大学":"电气/能源","西南交通大学":"交通","武汉理工大学":"材料/交通","河海大学":"水利","中国矿业大学":"矿业/安全","合肥工业大学":"工科综合","郑州大学":"综合类","南昌大学":"综合类","福州大学":"工科综合","苏州大学":"综合类","上海大学":"综合类","南京师范大学":"师范","深圳大学":"综合类","广东工业大学":"工科综合","广州大学":"综合类","南方医科大学":"医学","重庆邮电大学":"通信/计算机","重庆交通大学":"交通","重庆医科大学":"医学","西南政法大学":"法学","成都理工大学":"地质/环境","西南石油大学":"石油/地质","成都信息工程大学":"大气/计算机","四川师范大学":"师范","西华大学":"工科综合","四川农业大学":"农学/林学","西南科技大学":"材料/自动化","哈尔滨医科大学":"医学","温州医科大学":"医学","中国医科大学":"医学","南京医科大学":"医学","空军军医大学":"医学","海军军医大学":"医学","广东医科大学":"医学","川北医学院":"医学","首都医科大学":"医学","重庆医科大学":"医学","南方医科大学":"医学","广州医科大学":"医学","山西医科大学":"医学","安徽医科大学":"医学","昆明医科大学":"医学","贵州医科大学":"医学","新疆医科大学":"医学","广西医科大学":"医学","哈尔滨医科大学":"医学","河北医科大学":"医学","河南大学":"综合类","南京邮电大学":"通信/计算机","南京信息工程大学":"大气科学","杭州电子科技大学":"电子信息","燕山大学":"工科综合","湘潭大学":"综合类","山西大学":"综合类","南京工业大学":"化工/材料","浙江工业大学":"化工/机械","上海理工大学":"工科综合","西安理工大学":"水利/电气","武汉科技大学":"材料/冶金","长沙理工大学":"交通/电力"}
-def _major_for(uni): return UNI_MAJOR.get(uni, "综合类")
+def _major_for(uni):
+    name = uni
+    if name in UNI_MAJOR:
+        return UNI_MAJOR[name]
+    if "医" in name:
+        return "医学"
+    if "师范" in name:
+        return "师范"
+    if "财经" in name or "经贸" in name or "工商" in name or "商" in name:
+        return "财经类"
+    if "外国语" in name or "语言" in name:
+        return "外语/经管"
+    if "政法" in name or "公安" in name or "警察" in name:
+        return "法学"
+    if "工业" in name or "工程" in name or "理工" in name or "科技" in name or "交通" in name or "电力" in name or "邮电" in name or "电子" in name:
+        return "工科综合"
+    if "农林" in name or "农业" in name or "林业" in name or "海洋" in name:
+        return "农林"
+    if "民族" in name:
+        return "综合类"
+    return "综合类"
 
 async def seed_all():
     print("[seed] Starting unified seed...")
@@ -187,129 +207,72 @@ async def seed_all():
     maj_count = (await db.execute_fetchall("SELECT COUNT(*) FROM majors"))[0][0]
     print(f"[seed] Majors: {maj_count}")
     
-    # 5. Admission records (simulated)
+    # 5. Admission records — dynamically generated for ALL 31 provinces × both categories
     all_unis = {r[1]: {"id": r[0], "level": r[2]} for r in await db.execute_fetchall("SELECT id, name, level FROM universities")}
     adm_count = 0
     DEFAULT_BUCKET = {"985": "985_mid", "211": "211_mid", "双一流": "211_mid", "普通": "普通_mid"}
     
-    # 5a. Detailed 四川 data (realistic rank ranges)
-    sichuan_detail = [
-        # (uni_name, rank, score, major_cat)
-        ("哈尔滨医科大学", 30000, 590, "临床医学"),
-        ("温州医科大学", 30000, 590, "临床医学/眼视光"),
-        ("中国医科大学", 28000, 592, "临床医学"),
-        ("空军军医大学", 27400, 593, "临床医学"),
-        ("海军军医大学", 27400, 593, "临床医学"),
-        ("川北医学院", 30000, 590, "临床医学"),
-        ("广东医科大学", 26200, 595, "临床医学"),
-        ("南京中医药大学", 26200, 595, "中医药"),
-        ("重庆邮电大学", 28600, 591, "通信/计算机"),
-        ("合肥工业大学", 27400, 593, "工科综合"),
-        ("上海理工大学", 28600, 591, "工科综合"),
-        ("河北工业大学", 28600, 591, "电气/能源"),
-        ("成都理工大学", 28000, 592, "地质/环境"),
-        ("北方工业大学", 28000, 592, "自动化/电气"),
-        ("北京林业大学", 26800, 594, "综合类"),
-        ("重庆大学(民族班)", 28000, 592, "工科综合"),
-        ("西北大学", 30000, 590, "综合类"),
-        ("辽宁大学", 28600, 591, "综合类"),
-        ("南昌大学", 30000, 590, "综合类"),
-        ("西华大学", 30000, 590, "工科综合"),
-        ("西南政法大学", 27400, 593, "法学"),
-        ("四川农业大学", 33000, 585, "农学/林学"),
-        ("西南石油大学", 31000, 588, "石油/地质"),
-        ("成都信息工程大学", 38000, 580, "大气/计算机"),
-        ("四川师范大学", 42000, 575, "师范"),
-        ("西南科技大学", 35000, 583, "材料/自动化"),
-        ("重庆交通大学", 35500, 582, "交通"),
-        ("重庆理工大学", 40000, 578, "机械/车辆"),
-        ("成都大学", 42000, 575, "综合类"),
-        ("华中农业大学", 26200, 595, "农林"),
-        ("南京信息工程大学", 26200, 595, "大气科学"),
-        ("兰州大学", 26200, 595, "综合类"),
-        ("华北电力大学", 26800, 594, "电气/能源"),
-        ("苏州大学", 27400, 593, "综合类"),
-        ("西南大学", 27400, 593, "综合/师范"),
-        ("浙江工业大学", 27400, 593, "化工/制药"),
-        ("南京医科大学", 26800, 594, "医学/公卫"),
-        ("郑州大学", 26800, 594, "综合类"),
-        ("东北财经大学", 26800, 594, "财经类"),
-        ("东北电力大学", 26200, 595, "电气/能源"),
-        ("西安理工大学", 27400, 593, "水利/电气"),
-        ("中国矿业大学", 26200, 595, "矿业/安全"),
-        ("陕西科技大学", 26200, 595, "轻工/材料"),
-        ("广州大学", 26200, 595, "土木/建筑"),
-        ("内蒙古大学", 26200, 595, "理学/生物"),
-        ("首都经济贸易大学", 28000, 592, "经管/统计"),
-        ("广东工业大学", 28000, 592, "工科综合"),
-        ("福州大学", 28000, 592, "化工/材料"),
-        ("天津工业大学", 28000, 592, "纺织/材料"),
-        ("中国民航大学", 28000, 592, "航空工程"),
-        ("深圳大学(中外)", 28000, 592, "综合类"),
-        ("西安理工大学", 27400, 593, "水利/电气"),
-        ("太原理工大学", 27400, 593, "工科综合"),
-        ("陕西师范大学(定向)", 27400, 593, "师范/理学"),
-        ("南京审计大学", 27400, 593, "审计/会计"),
-        ("北京信息科技大学", 28000, 592, "信息/计算机"),
-        ("西南财经大学(中外)", 27400, 593, "金融/会计"),
-        ("安徽大学", 28600, 591, "综合类"),
-        ("南京邮电大学", 28600, 591, "通信/计算机"),
-        ("杭州电子科技大学", 28600, 591, "电子信息"),
-        ("广西大学", 28600, 591, "综合类"),
-        ("哈尔滨理工大学", 28600, 591, "电气/机械"),
-        ("上海对外经贸大学", 28600, 591, "经管/外贸"),
-        ("长春理工大学", 28600, 591, "光学/光电"),
-        ("长江大学", 28600, 591, "石油/地质"),
-    ]
+    # Helper: reverse rank → score lookup
+    async def rank_to_score(prov, cat, rank):
+        rows = await db.execute_fetchall(
+            "SELECT score, cumulative_count FROM score_segments WHERE province_name=? AND category=? AND cumulative_count IS NOT NULL ORDER BY cumulative_count ASC",
+            (prov, cat)
+        )
+        if not rows:
+            return 500 - rank // 1000
+        lower = None
+        for sc, cum in rows:
+            if cum >= rank:
+                if lower is None:
+                    return sc
+                ratio = (rank - lower[1]) / (cum - lower[1]) if cum != lower[1] else 0
+                return int(lower[0] + (sc - lower[0]) * ratio)
+            lower = (sc, cum)
+        return rows[-1][0] if rows else 400
     
-    for uni_name, rank, score, major_cat in sichuan_detail:
-        uid = all_unis.get(uni_name, {}).get("id")
-        if uid:
-            subj = SUBJ_REQ.get(major_cat.split("/")[0], "不限")
-            if major_cat in ("综合类", "综合/师范", "人文社科"):
-                subj = "不限"
-            await db.execute(
-                "INSERT OR IGNORE INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence, notes) VALUES (?,2025,'四川','物理类',?,?,?,?,?,5000,0,'gk100.com + 考试院','HIGH','2025真实数据')",
-                (uid, subj, f"专业组{rank//1000}", score, rank, major_cat)
-            )
-            adm_count += 1
-    await db.commit()
-    print(f"[seed] 四川详细数据: {len(sichuan_detail)} records")
-    
-    # 5b. Simulated data for other provinces (same as before)
+    # Generate tier-based admission data for each province
     for prov_name, categories in PROVINCE_SCALE.items():
-        if prov_name == "四川":
-            continue  # Skip 四川, already have detailed data
         for cat, total_students in categories.items():
-            cat_key = cat  # 物理类/历史类/综合
-            for uni_name, uni_data in list(all_unis.items())[:50]:
+            if total_students < 20000:
+                n = 60  # small provinces: more coverage
+            else:
+                n = 80  # large provinces: more coverage
+            # Use ALL schools, tier-based ranking
+            for uni_name, uni_data in list(all_unis.items())[:n]:
                 level = uni_data["level"]
                 bucket = UNI_TIER.get(level, {}).get(uni_name, DEFAULT_BUCKET[level])
                 pct = TIER_PCT.get(bucket, 0.5)
                 if "历史" in cat:
-                    pct *= 0.8
-                estimated_rank = max(1, int(total_students * pct))
+                    pct = min(pct * 0.7 + 0.05, 0.95)
+                base_rank = max(1, int(total_students * pct))
+                # Deterministic variation (±30%) so schools in same tier cover more rank range
+                var = (hash(uni_name + prov_name + cat) % 61 - 30) / 100
+                estimated_rank = max(1, int(base_rank * (1 + var)))
+                
+                # Dynamic score lookup from score_segments
+                estimated_score = await rank_to_score(prov_name, cat, estimated_rank)
+                
                 major_cat = _major_for(uni_name)
                 subj = SUBJ_REQ.get(major_cat.split("/")[0], "不限")
                 if major_cat in ("综合类", "人文社科"):
                     subj = "不限"
-                estimated_score = max(200, 400 - int(estimated_rank / 1000) + 10)
+                if "历史" in cat:
+                    subj = "不限"  # 历史类 mostly 不限
                 
                 try:
                     await db.execute(
-                        "INSERT OR IGNORE INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence, notes) VALUES (?,2025,?,?,?,?,?,?,?,5000,0,'SIMULATED','MEDIUM','tier-based estimate')",
-                        (uni_data["id"], prov_name, cat_key, subj, f"组{adm_count%20+1:03d}", estimated_score, estimated_rank, major_cat)
+                        "INSERT OR IGNORE INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence, notes) VALUES (?,2025,?,?,?,?,?,?,?,5000,0,'SIMULATED','MEDIUM','tier-based+score_segments')",
+                        (uni_data["id"], prov_name, cat, subj, f"组{abs(hash(uni_name+prov_name))%30+1:03d}", estimated_score, estimated_rank, major_cat)
                     )
                     adm_count += 1
                 except:
                     pass
             await db.commit()
     
-    print(f"[seed] Admission records: {adm_count}")
-    total_adm = (await db.execute_fetchall("SELECT COUNT(*) FROM admission_records"))[0][0]
-    total_prov = (await db.execute_fetchall("SELECT COUNT(DISTINCT target_province) FROM admission_records"))[0][0]
-    print(f"[seed] Total admission: {total_adm} across {total_prov} provinces")
-    print("[seed] ✅ Unified seed complete!")
+    print(f"[seed] Dynamic admission records: {adm_count}")
+    total_adm = (await db.execute_fetchall("SELECT COUNT(*), COUNT(DISTINCT target_province), COUNT(DISTINCT category) FROM admission_records"))[0]
+    print(f"[seed] Total: {total_adm[0]} records, {total_adm[1]} provinces, {total_adm[2]} categories")
     await db.close()
+    print("[seed] ✅ Unified seed complete!")
 
 asyncio.run(seed_all())

@@ -72,10 +72,10 @@ async def ai_driven_recommend(
 
 请用以下JSON格式返回（只返回JSON，不要其他文字）：
 {{"recommendations": [
-  {{"major": "专业名", "rank": 1, "score": 95, "reason": "为什么推荐（80字内，数据驱动，直接说人话）", "best_school": "最推荐的学校名", "risk": "有什么风险要注意（30字内）"}}
-], "summary": "给家长的一句话总结（50字内，像张雪峰那样一针见血）"}}
+  {{"major": "专业名", "rank": 1, "score": 95, "reason": "为什么推荐（80字内，引用实时搜到的市场数据）", "best_school": "最推荐的学校名", "risk": "有什么风险要注意（30字内）"}}
+], "summary": "给家长的建议（80字内，引用实时市场数据中的具体数字来支撑判断）"}}
 
-重要：只返回JSON，不要markdown代码块，不要解释。"""
+重要：只返回JSON，不要markdown代码块，不要解释。你的推荐和分析必须引用上面【2026年最新市场数据】中的具体信息，不要只靠自己的知识。如果搜索到了薪资中位数/就业率等数据，必须在理由中引用。"""
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
