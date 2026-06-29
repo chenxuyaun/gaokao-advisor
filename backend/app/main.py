@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.database import init_db
-from app.routers import recommend, data, recommend_v2, recommend_v3, ask
+from app.routers import recommend, data, recommend_v2, recommend_v3, ask, ai_features
 
 app = FastAPI(
     title="高考志愿顾问 Gaokao Advisor",
@@ -32,6 +32,7 @@ app.include_router(data.router, prefix="/api")
 app.include_router(recommend_v2.router, prefix="/api")
 app.include_router(recommend_v3.router, prefix="/api")
 app.include_router(ask.router, prefix="/api")
+app.include_router(ai_features.router)
 
 
 @app.on_event("startup")

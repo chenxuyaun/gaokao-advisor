@@ -30,28 +30,15 @@ async def get_rank(
     category: str = "物理类",
     year: int = 2026,
 ):
-    """Get estimated rank for a score."""
-    db = await get_db()
+    """Get estimated rank for a score (with interpolation)."""
     try:
-        cursor = await db.execute(
-            """SELECT score, cumulative_count, section_count
-               FROM score_segments
-               WHERE province_name = ? AND year = ? AND category = ? AND score = ?""",
-            (province, year, category, score)
-        )
-        row = await cursor.fetchone()
-        if row:
-            return {
-                "province": province,
-                "score": row[0],
-                "cumulative_count": row[1],
-                "section_count": row[2],
-                "year": year,
-                "category": category,
-            }
-        return {"error": "未找到该分数对应的位次数据", "province": province, "score": score}
-    finally:
-        await db.close()
+        from app.engine import estimate_rank
+        rank = await estimate_rank(province, score, category, year)
+        if rank:
+            return {"province": province, "score": score, "cumulative_count": rank, "year": year, "category": category}
+    except Exception as e:
+        print(f"[rank] Error: {e}")
+    return {"error": "未找到该分数对应的位次数据", "province": province, "score": score}
 
 
 @router.get("/score-segments/{province}")
