@@ -131,11 +131,12 @@ async def recommend_v3(req: RecommendV2Request):
 {db_matches}
 {market_section}
 【工作要求】
-1. 基于该省2025年录取数据（位次），推荐5-8个适合该考生位次（约{rank}名）的专业方向
-2. 每个专业方向列出1-3所具体大学，标注冲刺/稳妥/保底
-3. 用张雪峰风格分析：就业导向、数据驱动、说人话
-4. 默认考生是普通家庭，优先考虑就业确定性
-5. 理科优先推荐有技术壁垒的专业，文科优先推荐考公/师范方向
+1. **只从上面「数据库中该位次附近的真实录取数据」里选择学校推荐，不要自己添加任何其他学校。**
+2. 基于该省2025年录取数据（位次），推荐5-8个适合该考生位次（约{rank}名）的专业方向
+3. 每个专业方向列出1-3所具体大学，标注冲刺/稳妥/保底
+4. 用张雪峰风格分析：就业导向、数据驱动、说人话
+5. 默认考生是普通家庭，优先考虑就业确定性
+6. 理科优先推荐有技术壁垒的专业，文科优先推荐考公/师范方向
 
 请用以下JSON格式返回（只返回JSON）：
 {{
@@ -174,6 +175,28 @@ async def recommend_v3(req: RecommendV2Request):
             ai_summary = result.get("summary", "")
 
             for rec in recs:
+                school_name = rec.get("best_school", "")
+                # SAFETY: verify school exists in admission_records for this province
+                import re
+                clean_name = re.sub(r'[（(][^）)]*[）)]', '', school_name).strip()
+                try:
+                    from app.database import get_db as db_v
+                    dbv = await db_v()
+                    cv = await dbv.execute(
+                        "SELECT u.level, u.city FROM admission_records ar JOIN universities u ON ar.university_id=u.id WHERE ar.target_province=? AND ar.category=? AND u.name LIKE ? LIMIT 1",
+                        [req.province, req.category, f"%{clean_name}%"]
+                    )
+                    row_v = await cv.fetchone()
+                    if not row_v:
+                        print(f"[v3] SKIP (not in {req.province} admissions): {school_name}")
+                        await dbv.close()
+                        continue
+                    school_info = {"level": row_v[0] or "", "city": row_v[1] or ""}
+                    await dbv.close()
+                except Exception as e:
+                    print(f"[v3] Safety check error: {e}")
+                    pass
+                
                 # Estimate score from tier + cutoff
                 tier = rec.get("best_school_tier", "稳妥")
                 est_score = batch_cutoff if batch_cutoff else 400
@@ -184,24 +207,6 @@ async def recommend_v3(req: RecommendV2Request):
                 ai_score = rec.get("best_school_score")
                 if ai_score and ai_score > 0:
                     est_score = ai_score
-                
-                # Look up school level/city from database
-                school_info = {"level": "", "city": ""}
-                school_name = rec.get("best_school", "")
-                try:
-                    from app.database import get_db as db_get2
-                    db2 = await db_get2()
-                    cur2 = await db2.execute("SELECT level, city FROM universities WHERE name LIKE ? LIMIT 1", [f"%{school_name}%"])
-                    row2 = await cur2.fetchone()
-                    if row2:
-                        school_info = {"level": row2[0] or "", "city": row2[1] or ""}
-                        print(f"[v3] School lookup: {school_name} -> {school_info}")
-                    else:
-                        print(f"[v3] School NOT found: {school_name}")
-                    await db2.close()
-                except Exception as e:
-                    print(f"[v3] School lookup error: {e}")
-                    pass
                 
                 majors.append(MajorGroup(
                     major_category=rec.get("major", "综合类"),
