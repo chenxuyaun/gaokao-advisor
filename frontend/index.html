@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高考志愿顾问 - Gaokao Advisor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff; --bg-warm: #f6f5f4;
+      --text: rgba(0,0,0,0.95); --text-secondary: #615d59; --text-muted: #a39e98;
+      --border: 1px solid rgba(0,0,0,0.1);
+      --blue: #0075de; --blue-hover: #005bab; --blue-bg: #f2f9ff;
+      --red: #e03e2d; --yellow: #b45309; --green: #0f7b4e;
+      --red-bg: #fef2f2; --yellow-bg: #fffbeb; --green-bg: #f0fdf4;
+      --shadow-card: rgba(0,0,0,0.04) 0px 4px 18px, rgba(0,0,0,0.027) 0px 2.025px 7.85px, rgba(0,0,0,0.02) 0px 0.8px 2.93px, rgba(0,0,0,0.01) 0px 0.175px 1.04px;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, 'Microsoft YaHei', sans-serif; color: var(--text); background: var(--bg); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    .header { padding: 24px 0; border-bottom: var(--border); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 20px; font-weight: 700; }
+    .logo span { color: var(--blue); }
+    .nav { font-size: 13px; color: var(--text-muted); }
+
+    .hero { text-align: center; padding: 24px 0 32px; }
+    .hero h1 { font-size: 40px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 12px; }
+    .hero p { font-size: 16px; color: var(--text-secondary); max-width: 500px; margin: 0 auto; }
+
+    /* Disclaimer */
+    .disclaimer-banner {
+      background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #92400e;
+      line-height: 1.6;
+    }
+    .disclaimer-banner strong { color: #b45309; }
+
+    .form-card {
+      background: var(--bg); border: var(--border); border-radius: 16px;
+      padding: 28px; box-shadow: var(--shadow-card); margin-bottom: 24px;
+    }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { flex: 1; min-width: 120px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group select, .form-group input {
+      width: 100%; padding: 9px 12px; font-size: 15px; font-family: inherit;
+      border: 1px solid #ddd; border-radius: 6px; background: var(--bg); color: var(--text);
+    }
+    .form-group select:focus, .form-group input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,117,222,0.12); }
+    .form-group input[type=range] { padding: 0; border: none; box-shadow: none; accent-color: var(--blue); }
+    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .btn-search {
+      padding: 9px 28px; font-size: 15px; font-weight: 600; background: var(--blue); color: white;
+      border: none; border-radius: 6px; cursor: pointer; height: 44px; align-self: flex-end; white-space: nowrap;
+    }
+    .btn-search:hover { background: var(--blue-hover); }
+    .btn-search:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .tips-banner { background: var(--blue-bg); border: 1px solid rgba(0,117,222,0.15); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; font-size: 14px; color: #005bab; font-weight: 500; display: none; }
+    .tips-banner.active { display: block; }
+
+    .results { display: none; }
+    .results.active { display: block; }
+    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 900px) { .results-grid { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } }
+
+    .tier-col { border-radius: 12px; padding: 18px; border: var(--border); }
+    .tier-rush { background: var(--red-bg); border-color: rgba(224,62,45,0.15); }
+    .tier-steady { background: var(--yellow-bg); border-color: rgba(180,83,9,0.12); }
+    .tier-safe { background: var(--green-bg); border-color: rgba(15,123,78,0.12); }
+    .tier-title { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+    .tier-count { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+
+    .uni-card { background: white; border-radius: 8px; border: var(--border); padding: 12px; margin-bottom: 8px; transition: box-shadow 0.15s; }
+    .uni-card:hover { box-shadow: var(--shadow-card); }
+    .uni-name-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; flex-wrap: wrap; }
+    .uni-name { font-size: 14px; font-weight: 600; }
+    .uni-level { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+    .level-985 { background: #fef2f2; color: #991b1b; }
+    .level-211 { background: #eff6ff; color: #1e40af; }
+    .level-double { background: #f0fdf4; color: #166534; }
+    .level-normal { background: #f6f5f4; color: #615d59; }
+    .conf-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; }
+    .conf-HIGH { background: #dcfce7; color: #166534; }
+    .conf-MEDIUM { background: #fef9c3; color: #854d0e; }
+    .conf-LOW { background: #fee2e2; color: #991b1b; }
+    .uni-meta { font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; }
+    .uni-comment { font-size: 11px; color: var(--text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(0,0,0,0.06); font-style: italic; }
+    .salary-tag { font-size: 11px; background: #ecfdf5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+
+    .loading-spinner { display: none; text-align: center; padding: 40px; }
+    .loading-spinner.active { display: block; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #e5e7eb; border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg { display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px; color: #991b1b; font-size: 13px; margin-bottom: 16px; }
+    .error-msg.active { display: block; }
+
+    .footer { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 12px; border-top: var(--border); margin-top: 48px; }
+    .footer p { margin-top: 3px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">🎓 高考志愿<span>顾问</span></div>
+      <div class="nav">免费 · 开源 · 数据驱动</div>
+    </header>
+
+    <!-- DISCLAIMER -->
+    <div class="disclaimer-banner">
+      <strong>⚠️ 重要声明</strong><br>
+      本系统基于<strong>2025年历史录取数据</strong>推算，2026年实际录取分数线会有波动。数据来源：gk100.com、四川省教育考试院。
+      结果仅供参考，<strong>不构成志愿填报建议</strong>。志愿填报关系考生前途，请务必多方核实、慎重决策。
+      最终填报请以<strong>四川省教育考试院官方系统</strong>为准。
+    </div>
+
+    <section class="hero">
+      <h1>输入分数，智能匹配<br>你的大学和专业</h1>
+      <p>基于历年录取数据+位次分析+张雪峰风格点评，帮你科学规划志愿</p>
+    </section>
+
+    <div class="form-card">
+      <div class="form-row">
+        <div class="form-group">
+          <label>省份</label>
+          <select id="province"><option value="四川" selected>四川</option></select>
+        </div>
+        <div class="form-group">
+          <label>高考分数</label>
+          <input type="number" id="score" value="591" min="100" max="750">
+        </div>
+        <div class="form-group">
+          <label>类别</label>
+          <select id="category"><option value="物理类" selected>物理类</option><option value="历史类">历史类</option></select>
+        </div>
+        <div class="form-group">
+          <label>选科组合</label>
+          <select id="subjectCombo"><option value="物化生" selected>物化生</option><option value="物化地">物化地</option><option value="物化政">物化政</option><option value="物生地">物生地</option><option value="史政地">史政地</option></select>
+        </div>
+        <div class="form-group" style="min-width:100px;">
+          <label>冲刺激进程度 <span id="rushLabel">标准</span></label>
+          <input type="range" id="rushRatio" min="80" max="99" value="97" oninput="updateRushLabel()">
+          <div class="range-labels"><span>保守</span><span>激进</span></div>
+        </div>
+        <div class="form-group" style="min-width:100px;">
+          <label>保底安全程度 <span id="safeLabel">标准</span></label>
+          <input type="range" id="safeRatio" min="100" max="120" value="105" oninput="updateSafeLabel()">
+          <div class="range-labels"><span>宽松</span><span>严格</span></div>
+        </div>
+        <button class="btn-search" onclick="search()" id="btnSearch">🔍 开始分析</button>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="loading-spinner" id="loading"><div class="spinner"></div><p style="color:var(--text-secondary);font-size:13px;">正在分析中...</p></div>
+    <div class="tips-banner" id="tipsBanner"></div>
+    <div class="results" id="results"><div class="results-grid" id="resultsGrid"></div></div>
+
+    <footer class="footer">
+      <p>📊 数据来源：gk100.com · 四川省教育考试院 · 中国教育在线 | 🔓 开源免费 · MIT License</p>
+      <p>⚠️ 2025年录取数据供参考，2026年实际录取分数会有波动。标注 <span style="background:#dcfce7;color:#166534;padding:1px 4px;border-radius:2px;font-size:10px;">HIGH</span> 为高可信度数据，<span style="background:#fef9c3;color:#854d0e;padding:1px 4px;border-radius:2px;font-size:10px;">MEDIUM</span> 为参考数据。</p>
+    </footer>
+  </div>
+
+  <script>
+    const API = '/api';
+
+    function updateRushLabel() {
+      const v = document.getElementById('rushRatio').value;
+      const labels = {80:'非常保守',85:'保守',90:'较保守',93:'偏保守',95:'略保守',97:'标准',98:'略激进',99:'激进'};
+      document.getElementById('rushLabel').textContent = labels[v] || v;
+    }
+    function updateSafeLabel() {
+      const v = document.getElementById('safeRatio').value;
+      const labels = {100:'非常宽松',102:'宽松',105:'标准',108:'较严格',110:'严格',115:'很严格',120:'极严格'};
+      document.getElementById('safeLabel').textContent = labels[v] || v;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = '⚠️ ' + msg;
+      el.classList.add('active');
+      setTimeout(() => el.classList.remove('active'), 6000);
+    }
+
+    async function search() {
+      const btn = document.getElementById('btnSearch');
+      const loading = document.getElementById('loading');
+      const results = document.getElementById('results');
+      const tips = document.getElementById('tipsBanner');
+      const error = document.getElementById('errorMsg');
+
+      error.classList.remove('active');
+      results.classList.remove('active');
+      tips.classList.remove('active');
+      loading.classList.add('active');
+      btn.disabled = true;
+
+      const payload = {
+        province: document.getElementById('province').value,
+        score: parseInt(document.getElementById('score').value),
+        category: document.getElementById('category').value,
+        subject_combo: document.getElementById('subjectCombo').value,
+        rush_ratio: parseInt(document.getElementById('rushRatio').value) / 100,
+        safe_ratio: parseInt(document.getElementById('safeRatio').value) / 100,
+      };
+
+      if (!payload.score || payload.score < 100 || payload.score > 750) {
+        showError('请输入有效的分数（100-750）');
+        loading.classList.remove('active');
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const resp = await fetch(API + '/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || '请求失败');
+        }
+        const data = await resp.json();
+        render(data);
+      } catch (e) {
+        showError(e.message || '网络错误，请检查后端服务');
+      } finally {
+        loading.classList.remove('active');
+        btn.disabled = false;
+      }
+    }
+
+    function render(data) {
+      const tips = document.getElementById('tipsBanner');
+      tips.textContent = data.tips || '';
+      tips.classList.add('active');
+
+      const tiers = { '冲刺': [], '稳妥': [], '保底': [] };
+      for (const s of data.suggestions) {
+        if (tiers[s.tier]) tiers[s.tier].push(s);
+      }
+
+      const tierConfig = {
+        '冲刺': { cls: 'tier-rush', emoji: '🔴' },
+        '稳妥': { cls: 'tier-steady', emoji: '🟡' },
+        '保底': { cls: 'tier-safe', emoji: '🟢' },
+      };
+
+      const grid = document.getElementById('resultsGrid');
+      grid.innerHTML = '';
+
+      for (const [tierName, items] of Object.entries(tiers)) {
+        const cfg = tierConfig[tierName];
+        const col = document.createElement('div');
+        col.className = `tier-col ${cfg.cls}`;
+
+        let html = `<div class="tier-title">${cfg.emoji} ${tierName}</div>`;
+        html += `<div class="tier-count">${items.length} 个院校专业组</div>`;
+
+        for (const s of items) {
+          let levelCls = 'level-normal';
+          if (s.level === '985') levelCls = 'level-985';
+          else if (s.level === '211') levelCls = 'level-211';
+          else if (s.level === '双一流') levelCls = 'level-double';
+
+          const conf = s.confidence || 'MEDIUM';
+          const confLabel = {HIGH:'高可信',MEDIUM:'参考',LOW:'低可信'}[conf] || conf;
+
+          let metaHtml = '';
+          if (s.city) metaHtml += `<span>📍 ${s.city}</span>`;
+          metaHtml += `<span>📊 ${s.min_score}分 / ${s.min_rank ? (s.min_rank/10000).toFixed(1)+'万名' : '-'}</span>`;
+          if (s.subject_requirement) metaHtml += `<span>📋 ${s.subject_requirement}</span>`;
+          if (s.group_name) metaHtml += `<span>🏷 ${s.group_name}</span>`;
+          if (s.major_category) metaHtml += `<span>📚 ${s.major_category}</span>`;
+          if (s.is_sino_foreign) metaHtml += `<span>🌍 中外合作</span>`;
+          if (s.tuition && s.tuition > 10000) metaHtml += `<span>💰 ${(s.tuition/10000).toFixed(1)}万/年</span>`;
+
+          // Salary & employment
+          if (s.avg_salary) metaHtml += `<span class="salary-tag">💰 ${(s.avg_salary/10000).toFixed(1)}万/年</span>`;
+          if (s.employment_rate && s.employment_rate >= 0.9) metaHtml += `<span style="color:#065f46;font-size:11px;">📈 就业率${(s.employment_rate*100).toFixed(0)}%</span>`;
+
+          const zxc = s.zhang_xuefeng_comment;
+          const note = s.notes;
+          const commentHtml = (zxc || note)
+            ? `<div class="uni-comment">${zxc ? '💬 ' + zxc : ''}${(!zxc && note) ? '📝 ' + note : ''}</div>`
+            : '';
+
+          html += `
+            <div class="uni-card">
+              <div class="uni-name-row">
+                <span class="uni-name">${s.name}</span>
+                ${s.level ? `<span class="uni-level ${levelCls}">${s.level}</span>` : ''}
+                <span class="conf-badge conf-${conf}">${confLabel}</span>
+              </div>
+              <div class="uni-meta">${metaHtml}</div>
+              ${commentHtml}
+            </div>`;
+        }
+
+        col.innerHTML = html;
+        grid.appendChild(col);
+      }
+
+      document.getElementById('results').classList.add('active');
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    document.getElementById('score').addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
+    window.addEventListener('DOMContentLoaded', () => { search(); });
+  </script>
+</body>
+</html>
