@@ -75,7 +75,6 @@ async def recommend_v3(req: RecommendV2Request):
     batch_line = f"本科线{batch_cutoff}分" if batch_cutoff else ""
 
     province_ref = PROVINCE_REF.get(req.province, "")
-    tier_info = f"985大学: {TOP_UNIS['985']}\n211大学: {TOP_UNIS['211']}"
 
     # === Real-time market search ===
     market_section = ""
@@ -89,8 +88,39 @@ async def recommend_v3(req: RecommendV2Request):
             market_section = f"\n【实时市场数据参考】\n{market_data}\n"
     except:
         pass
+    
+    province_ref = PROVINCE_REF.get(req.province, "")
 
-    prompt = f"""你是高考志愿顾问+张雪峰风格分析。根据考生信息，直接推荐适合的专业方向和学校。
+    # === 数据库查询真实匹配的学校 ===
+    db_matches = ""
+    try:
+        from app.database import get_db as db_get
+        db = await db_get()
+        lo, hi = int(rank * 0.7), int(rank * 1.5)
+        cur = await db.execute("""
+            SELECT u.name, u.level, ar.min_score, ar.min_rank, ar.major_category
+            FROM admission_records ar JOIN universities u ON ar.university_id = u.id
+            WHERE ar.target_province = ? AND ar.category = ? AND ar.year = 2025
+              AND ar.min_rank BETWEEN ? AND ?
+            ORDER BY ar.min_rank ASC LIMIT 30
+        """, [req.province, req.category, lo, hi])
+        rows = await cur.fetchall()
+        if rows:
+            grouped = {}
+            for r in rows:
+                cat = r[4] or "综合类"
+                if cat not in grouped:
+                    grouped[cat] = []
+                grouped[cat].append(f"{r[0]}({r[2]}分/{r[3]}名)")
+            parts = []
+            for cat, schools in sorted(grouped.items(), key=lambda x: -len(x[1]))[:10]:
+                parts.append(f"  {cat}: {'、'.join(schools[:3])}")
+            db_matches = "【数据库中该位次附近的真实录取数据】\n" + "\n".join(parts)
+        await db.close()
+    except:
+        pass
+
+    prompt = f"""你是高考志愿顾问+张雪峰风格分析。基于以下真实录取数据，为考生推荐最适合的专业方向。
 
 【考生信息】
 - 省份：{req.province}（{province_ref}）
@@ -98,8 +128,7 @@ async def recommend_v3(req: RecommendV2Request):
 - 类别：{req.category} | 选科：{req.subject_combo}
 - 分数线：{cutoff_line}，{batch_line}
 
-【高校参考】
-{tier_info}
+{db_matches}
 {market_section}
 【工作要求】
 1. 基于该省2025年录取数据（位次），推荐5-8个适合该考生位次（约{rank}名）的专业方向
