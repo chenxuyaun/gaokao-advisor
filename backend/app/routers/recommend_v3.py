@@ -139,6 +139,7 @@ async def recommend_v3(req: RecommendV2Request):
 4. 用张雪峰风格分析：就业导向、数据驱动、说人话
 5. 默认考生是普通家庭，优先考虑就业确定性
 6. 理科优先推荐有技术壁垒的专业，文科优先推荐考公/师范方向
+7. **选科限制：{req.category}考生只能报考对应选科的专业。{req.category} + {req.subject_combo} 不能报临床医学/计算机/电气工程等要求物化生的专业，只能报法学/师范/汉语言/会计/管理等不限选科的专业。**
 
 请用以下JSON格式返回（只返回JSON）：
 {{
@@ -175,35 +176,30 @@ async def recommend_v3(req: RecommendV2Request):
             result = json.loads(text)
             recs = result.get("recommendations", [])
             ai_summary = result.get("summary", "")
+            if not recs:
+                print(f"[v3] AI returned no recommendations! Summary: {ai_summary[:100]}")
+                print(f"[v3] Raw result keys: {list(result.keys())}")
 
             for rec in recs:
                 school_name = rec.get("best_school", "")
-                # SAFETY: verify school exists in DB admission data for this province
+                # Look up school info from database (level/city)
+                clean_name = school_name
                 import re
                 clean_name = re.sub(r'[（(][^）)]*[）)]', '', school_name).strip()
-                
-                # Quick check: was this school in the database matches?
-                in_db_match = any(clean_name in s or s in clean_name for s in db_match_schools)
-                
-                if not in_db_match:
-                    try:
-                        from app.database import get_db as db_v
-                        dbv = await db_v()
-                        cv = await dbv.execute(
-                            "SELECT u.level, u.city FROM admission_records ar JOIN universities u ON ar.university_id=u.id WHERE ar.target_province=? AND ar.category=? AND u.name LIKE ? LIMIT 1",
-                            [req.province, req.category, f"%{clean_name}%"]
-                        )
-                        row_v = await cv.fetchone()
-                        if row_v:
-                            in_db_match = True
-                            school_info = {"level": row_v[0] or "", "city": row_v[1] or ""}
-                        await dbv.close()
-                    except:
-                        pass
-                
-                if not in_db_match:
-                    print(f"[v3] SKIP (not in DB): {school_name}")
-                    continue
+                school_info = {"level": "", "city": ""}
+                try:
+                    from app.database import get_db as db_v
+                    dbv = await db_v()
+                    cv = await dbv.execute(
+                        "SELECT level, city FROM universities WHERE name LIKE ? LIMIT 1",
+                        [f"%{clean_name}%"]
+                    )
+                    row_v = await cv.fetchone()
+                    if row_v:
+                        school_info = {"level": row_v[0] or "", "city": row_v[1] or ""}
+                    await dbv.close()
+                except:
+                    pass
                 
                 # Estimate score from tier + cutoff
                 tier = rec.get("best_school_tier", "稳妥")

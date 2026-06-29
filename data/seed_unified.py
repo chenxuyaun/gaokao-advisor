@@ -231,6 +231,60 @@ async def seed_all():
     await db.commit()
     maj_count = (await db.execute_fetchall("SELECT COUNT(*) FROM majors"))[0][0]
     print(f"[seed] Majors: {maj_count}")
+    
+    # 5. Admission records — tier-based + dynamic score lookup
+    all_unis = {r[1]: {"id": r[0], "level": r[2]} for r in await db.execute_fetchall("SELECT id, name, level FROM universities")}
+    adm_count = 0
+    DEFAULT_BUCKET = {"985": "985_mid", "211": "211_mid", "双一流": "211_mid", "普通": "普通_mid"}
+    
+    async def rank_to_score(prov, cat, rk):
+        rows = await db.execute_fetchall(
+            "SELECT score, cumulative_count FROM score_segments WHERE province_name=? AND category=? AND cumulative_count IS NOT NULL ORDER BY cumulative_count ASC",
+            (prov, cat)
+        )
+        if not rows:
+            return 500 - rk // 1000
+        lower = None
+        for sc, cum in rows:
+            if cum >= rk:
+                if lower is None:
+                    return sc
+                ratio = (rk - lower[1]) / (cum - lower[1]) if cum != lower[1] else 0
+                return int(lower[0] + (sc - lower[0]) * ratio)
+            lower = (sc, cum)
+        return rows[-1][0] if rows else 400
+    
+    for prov_name, categories in PROVINCE_SCALE.items():
+        for cat, total_students in categories.items():
+            for uni_name, uni_data in list(all_unis.items())[:80]:
+                level = uni_data["level"]
+                bucket = UNI_TIER.get(level, {}).get(uni_name, DEFAULT_BUCKET[level])
+                pct = TIER_PCT.get(bucket, 0.5)
+                if "历史" in cat:
+                    pct = min(pct * 0.7 + 0.05, 0.95)
+                base_rank = max(1, int(total_students * pct))
+                var = (hash(uni_name + prov_name + cat) % 61 - 30) / 100
+                estimated_rank = max(1, int(base_rank * (1 + var)))
+                estimated_score = await rank_to_score(prov_name, cat, estimated_rank)
+                major_cat = _major_for(uni_name)
+                subj = SUBJ_REQ.get(major_cat.split("/")[0], "不限")
+                if major_cat in ("综合类", "人文社科"):
+                    subj = "不限"
+                if "历史" in cat:
+                    subj = "不限"
+                try:
+                    await db.execute(
+                        "INSERT OR IGNORE INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence, notes) VALUES (?,2025,?,?,?,?,?,?,?,5000,0,'SIMULATED','MEDIUM','tier-based+score_segments')",
+                        (uni_data["id"], prov_name, cat, subj, f"组{abs(hash(uni_name+prov_name))%30+1:03d}", estimated_score, estimated_rank, major_cat)
+                    )
+                    adm_count += 1
+                except:
+                    pass
+            await db.commit()
+    
+    print(f"[seed] Admission records: {adm_count}")
+    total_adm = (await db.execute_fetchall("SELECT COUNT(*), COUNT(DISTINCT target_province), COUNT(DISTINCT category) FROM admission_records"))[0]
+    print(f"[seed] Total: {total_adm[0]} records, {total_adm[1]} provinces, {total_adm[2]} categories")
     await db.close()
     print("[seed] ✅ Unified seed complete!")
 
