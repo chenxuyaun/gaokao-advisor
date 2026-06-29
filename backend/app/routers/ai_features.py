@@ -63,6 +63,25 @@ async def admission_probability(req: ProbabilityRequest):
     # Search for latest cutoff data
     search_data = await search_market([f"{req.university} {req.province} 录取分数线 2025"], limit=2)
     
+    # 数据库查询真实录取数据
+    db_ref = ""
+    try:
+        from app.database import get_db as db_get
+        db = await db_get()
+        cur = await db.execute("""
+            SELECT u.name, ar.min_score, ar.min_rank, ar.major_category
+            FROM admission_records ar JOIN universities u ON ar.university_id = u.id
+            WHERE ar.target_province = ? AND ar.category = ? AND ar.year = 2025
+              AND u.name LIKE ? ORDER BY ar.min_rank ASC LIMIT 5
+        """, [req.province, req.category, f"%{req.university}%"])
+        rows = await cur.fetchall()
+        if rows:
+            refs = [f"{r[0]}：{r[2]}名/{r[1]}分（{r[3]}）" for r in rows]
+            db_ref = "【数据库中该院校在该省的真实录取数据】\n" + "\n".join(refs)
+        await db.close()
+    except:
+        pass
+    
     prompt = f"""你是高考志愿录取分析专家。请估算以下考生被特定院校+专业录取的概率。
 
 考生信息：
@@ -71,6 +90,7 @@ async def admission_probability(req: ProbabilityRequest):
 - 目标院校：{req.university}
 - 目标专业：{req.major}
 
+{db_ref}
 搜索到的参考数据：
 {search_data if search_data else "（无实时数据，请基于你的知识回答）"}
 
