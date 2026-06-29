@@ -39,7 +39,9 @@ async def startup():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    import os
+    has_ai = bool(os.getenv("DEEPSEEK_API_KEY", ""))
+    return {"status": "ok", "version": "2.1.0", "ai_ready": has_ai}
 
 
 # Mount frontend AFTER all routes — otherwise StaticFiles at "/" intercepts /api/*
