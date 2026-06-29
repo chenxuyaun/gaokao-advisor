@@ -1,7 +1,7 @@
 """Recommendation API router (legacy v1 — delegates to v2 engine)."""
 from fastapi import APIRouter
 from app.models import RecommendRequest, RecommendResponse, UniversityInfo
-from app.engine import estimate_rank, match_majors, get_cutoff_scores
+from app.engine import estimate_rank, get_cutoff_scores
 
 router = APIRouter()
 

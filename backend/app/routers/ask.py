@@ -38,7 +38,57 @@ class AskRequest(BaseModel):
 class AskAnswer(BaseModel):
     question: str
     answer: str
-    sources: Optional[List[str]] = None  # search result URLs
+    sources: Optional[List[str]] = None
+
+
+# ===== Dynamic question generation =====
+
+@router.get("/ask/dynamic-questions")
+async def dynamic_questions(province: str = "四川", category: str = "物理类", score: int = 500, major: str = ""):
+    """Generate personalized questions based on student profile and recommended major."""
+    if not DEEPSEEK_KEY:
+        return {"questions": PARENT_QUESTIONS}
+    
+    major_context = f"该生考虑报考{major}专业。" if major else ""
+    
+    prompt = f"""你是一位高考志愿顾问。一个{province}{category}考生，{score}分。{major_context}
+请根据该生的情况，生成3-5个家长最可能问的针对性问题。
+要求：
+- 问题具体、有针对性，不要笼统
+- 结合该省份的就业特点和分数段
+- 如果指定了专业，问题要围绕该专业展开
+- 每个问题控制在20字以内
+
+返回格式：只返回JSON数组，如["问题1", "问题2", "问题3"]"""
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": "你是高考志愿顾问。只返回JSON数组，不要其他文字。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.3,
+                },
+            )
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"].strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1]
+                if text.endswith("```"):
+                    text = text[:-3]
+            questions = json.loads(text)
+            if isinstance(questions, list) and len(questions) >= 3:
+                return {"questions": questions}
+    except Exception as e:
+        print(f"[AI questions] Error: {e}")
+    
+    return {"questions": PARENT_QUESTIONS}  # search result URLs
 
 
 class AskResponse(BaseModel):

@@ -351,13 +351,50 @@ const PARENT_QUESTIONS = [
   '这个专业出来做什么工作？',
   '毕业后好找工作吗？薪资多少？',
   '能考公务员吗？什么岗位？',
-  '需要考研吗？不考研能找到工作吗？',
-  '这个专业未来10年会贬值吗？',
-  '这个专业毕业能拿多少钱？5年后呢？',
-  '毕业后能留在大城市吗？',
-  '学费贵不贵？有没有隐形费用？',
-  '适合女生/男生读吗？',
+  '考研好考吗？保研率多少？',
+  '这个专业对女生友好吗？',
+  '这个专业未来会被AI取代吗？',
+  '哪些学校这个专业比较强？',
+  '毕业后留本地还是去一线城市？',
+  '这个专业需要考研吗？',
+  '考教师资格证有用吗？',
 ];
+
+async function loadQuestions(card) {
+  const chips = card.querySelector('.ask-chips');
+  const major = card.getAttribute('data-major');
+  // Try to get AI-generated questions first
+  try {
+    const params = new URLSearchParams({
+      province: document.getElementById('province').value,
+      category: document.getElementById('category').value,
+      score: document.getElementById('score').value,
+      major: major || '',
+    });
+    const resp = await fetch(`/api/ask/dynamic-questions?${params}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.questions && data.questions.length >= 3) {
+        data.questions.forEach(q => {
+          const chip = document.createElement('span');
+          chip.className = 'ask-chip';
+          chip.textContent = q;
+          chip.onclick = function() { this.classList.toggle('selected'); };
+          chips.appendChild(chip);
+        });
+        return;
+      }
+    }
+  } catch (e) {}
+  // Fallback to hardcoded questions
+  PARENT_QUESTIONS.forEach(q => {
+    const chip = document.createElement('span');
+    chip.className = 'ask-chip';
+    chip.textContent = q;
+    chip.onclick = function() { this.classList.toggle('selected'); };
+    chips.appendChild(chip);
+  });
+}
 
 async function toggleAsk(btn) {
   const panel = btn.nextElementSibling;
@@ -367,13 +404,7 @@ async function toggleAsk(btn) {
     panel.classList.add('open');
     // Load questions if empty
     if (!chips.children.length) {
-      PARENT_QUESTIONS.forEach(q => {
-        const chip = document.createElement('span');
-        chip.className = 'ask-chip';
-        chip.textContent = q;
-        chip.onclick = function() { this.classList.toggle('selected'); };
-        chips.appendChild(chip);
-      });
+      loadQuestions(card);
     }
     btn.textContent = '💬 收起问答';
   } else {
