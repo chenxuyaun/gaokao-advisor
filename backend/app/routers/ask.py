@@ -47,10 +47,11 @@ class AskResponse(BaseModel):
     answers: List[AskAnswer]
 
 
-async def search_web(query: str, limit: int = 3) -> List[dict]:
-    """Search SearXNG for real-time info."""
+async def search_web(query: str, limit: int = 3) -> list:
+    """Search web — try SearXNG first (local), fallback to DuckDuckGo (free, no key)."""
+    # Try SearXNG first (local)
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.get(
                 f"{SEARXNG_URL}/search",
                 params={"q": query, "format": "json", "categories": "general"},
@@ -63,9 +64,42 @@ async def search_web(query: str, limit: int = 3) -> List[dict]:
                     "url": r.get("url", ""),
                     "snippet": r.get("content", "")[:300],
                 })
-            return results
+            if results:
+                return results
     except Exception:
-        return []  # Silent fail — search is optional enhancement
+        pass
+
+    # Fallback: DuckDuckGo free search
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://api.duckduckgo.com/",
+                params={"q": query, "format": "json", "no_html": 1, "skip_disambig": 1},
+                headers={"User-Agent": "GaokaoAdvisor/2.0"},
+            )
+            data = resp.json()
+            results = []
+            # DuckDuckGo Instant Answer
+            if data.get("AbstractText"):
+                results.append({
+                    "title": data.get("AbstractSource", "DuckDuckGo"),
+                    "url": data.get("AbstractURL", ""),
+                    "snippet": data["AbstractText"][:300],
+                })
+            # Related topics
+            for t in data.get("RelatedTopics", [])[:limit - len(results)]:
+                if isinstance(t, dict) and "Text" in t:
+                    results.append({
+                        "title": t.get("FirstURL", ""),
+                        "url": t.get("FirstURL", ""),
+                        "snippet": t["Text"][:200],
+                    })
+            if results:
+                return results
+    except Exception:
+        pass
+
+    return []
 
 
 # Pre-built parent question templates with answer hints
