@@ -74,6 +74,8 @@ async def recommend_v3(req: RecommendV2Request):
     cutoff_line = f"特控线{special_cutoff}分" if special_cutoff else ""
     batch_line = f"本科线{batch_cutoff}分" if batch_cutoff else ""
 
+    sino_label = "需非中外合作" if req.pref_sino == "0" else "中外合作可" if req.pref_sino else ""
+    
     province_ref = PROVINCE_REF.get(req.province, "")
 
     # === Real-time market search ===
@@ -129,6 +131,10 @@ async def recommend_v3(req: RecommendV2Request):
 - 分数：{req.score}分，全省位次：约{rank}名
 - 类别：{req.category} | 选科：{req.subject_combo}
 - 分数线：{cutoff_line}，{batch_line}
+- 偏好设置：{req.pref_type or '不限学校类型'} | {req.pref_plan or '不限未来规划'} | 学费≤{req.pref_tuition or '不限'}
+{f' | 意向专业：{req.pref_major}' if req.pref_major else ''}
+{f' | 偏好城市：{req.pref_cities}' if req.pref_cities else ''}
+{f' | 办学性质：{sino_label}' if req.pref_sino else ''}
 
 {db_matches}
 {market_section}

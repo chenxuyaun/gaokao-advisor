@@ -151,6 +151,24 @@
     </div>
   </div>
 
+  <!-- 偏好设置 -->
+  <div id="prefs" style="font-size:12px;margin:4px 0 8px;">
+    <span style="cursor:pointer;color:var(--blue);" onclick="document.getElementById('pref-detail').style.display=document.getElementById('pref-detail').style.display==='none'?'block':'none'">⚙️ 偏好设置（可选） ▾</span>
+    <div id="pref-detail" style="display:none;margin-top:4px;padding:6px;background:#f9fafb;border-radius:6px;">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">
+        <select id="pref-type" style="font-size:11px;padding:3px;"><option value="">学校类型</option><option value="公办">公办</option><option value="民办">民办</option></select>
+        <select id="pref-tuition" style="font-size:11px;padding:3px;"><option value="">学费上限</option><option value="5000">≤5000</option><option value="10000">≤1万</option><option value="20000">≤2万</option><option value="50000">≤5万</option></select>
+        <select id="pref-plan" style="font-size:11px;padding:3px;"><option value="">未来规划</option><option value="就业">就业</option><option value="考研">考研</option><option value="考公">考公</option><option value="出国">出国</option></select>
+        <select id="pref-sino" style="font-size:11px;padding:3px;"><option value="">办学性质</option><option value="0">非中外合作</option><option value="1">可中外合作</option></select>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <input type="text" id="pref-cities" placeholder="偏好城市（如：成都、广州）" style="flex:1;font-size:11px;padding:4px;">
+        <input type="text" id="pref-major" placeholder="意向专业（如：会计、计算机）" style="flex:1;font-size:11px;padding:4px;">
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">💡 AI会参考你的偏好进行推荐，如果搜到招生简章中的相关信息也会一并分析</div>
+    </div>
+  </div>
+
   <div class="disclaimer">
     ⚠️ 基于2025年历史录取数据推算。仅供参考，最终请以省教育考试院官方为准。
   </div>
@@ -171,6 +189,12 @@ async function search() {
     score: parseInt(document.getElementById('score').value),
     category: document.getElementById('category').value,
     subject_combo: document.getElementById('subject').value,
+    pref_type: (document.getElementById('pref-type')||{}).value || '',
+    pref_tuition: (document.getElementById('pref-tuition')||{}).value || '',
+    pref_plan: (document.getElementById('pref-plan')||{}).value || '',
+    pref_sino: (document.getElementById('pref-sino')||{}).value || '',
+    pref_cities: (document.getElementById('pref-cities')||{}).value || '',
+    pref_major: (document.getElementById('pref-major')||{}).value || '',
   };
   if (!payload.score || payload.score < 100 || payload.score > 750) {
     results.innerHTML = '<div class="empty">请输入有效分数（100-750）</div>';
@@ -361,13 +385,16 @@ async function loadQuestions(card) {
 
 async function toggleAsk(btn) {
   const card = btn.closest('.major-card');
+  if (!card) return;
   const panel = card.querySelector('.ask-panel');
+  if (!panel) return;
   const chips = panel.querySelector('.ask-chips');
+  if (!chips) return;
   if (!panel.classList.contains('open')) {
     panel.classList.add('open');
     if (!chips.children.length) {
       const card2 = panel.closest('.major-card');
-      loadQuestions(card2);
+      if (card2) loadQuestions(card2);
     }
     btn.textContent = '💬 收起问答';
   } else {

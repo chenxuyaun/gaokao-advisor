@@ -82,6 +82,12 @@ class RecommendV2Request(BaseModel):
     score: int
     category: str = "物理类"
     subject_combo: str = "物化生"
+    pref_type: str = ""
+    pref_tuition: str = ""
+    pref_plan: str = ""
+    pref_sino: str = ""
+    pref_cities: str = ""
+    pref_major: str = ""
 
 class RecommendV2Response(BaseModel):
     province: str
