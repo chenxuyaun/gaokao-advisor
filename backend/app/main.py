@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.database import init_db
-from app.routers import recommend, data
+from app.routers import recommend, data, recommend_v2
 
 app = FastAPI(
     title="高考志愿顾问 Gaokao Advisor",
@@ -29,6 +29,7 @@ app.add_middleware(
 
 app.include_router(recommend.router, prefix="/api")
 app.include_router(data.router, prefix="/api")
+app.include_router(recommend_v2.router, prefix="/api")
 
 
 @app.on_event("startup")
