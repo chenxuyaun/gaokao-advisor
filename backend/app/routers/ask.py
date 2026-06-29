@@ -48,34 +48,53 @@ class AskResponse(BaseModel):
 
 
 async def search_web(query: str, limit: int = 3) -> list:
-    """Search web FREE — Wikipedia + DuckDuckGo HTML, zero API keys, works on HF Space."""
+    """Search web FREE — Wikipedia + 360 + DuckDuckGo, zero cost."""
 
-    # 1. Wikipedia (free, no key, works globally, great for education)
+    all_results = []
+
+    # 1. Wikipedia (education topics)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 "https://zh.wikipedia.org/w/api.php",
-                params={
-                    "action": "query", "list": "search",
-                    "srsearch": query, "format": "json",
-                    "srlimit": str(limit),
-                },
+                params={"action": "query", "list": "search", "srsearch": query, "format": "json", "srlimit": str(limit)},
                 headers={"User-Agent": "GaokaoAdvisor/2.0"},
             )
             data = resp.json()
-            results = []
             for r in data.get("query", {}).get("search", [])[:limit]:
-                results.append({
+                all_results.append({
                     "title": r.get("title", ""),
                     "url": f"https://zh.wikipedia.org/wiki/{r['title'].replace(' ','_')}",
                     "snippet": r.get("snippet", "")[:300].replace('<span class="searchmatch">','').replace('</span>',''),
+                    "engine": "wikipedia",
                 })
-            if results:
-                return results
     except Exception:
         pass
 
-    # 2. DuckDuckGo HTML search (free, no API key)
+    # 2. 360 Search (so.com) — best Chinese search, free
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://www.so.com/s",
+                params={"q": query, "pn": "1"},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+            )
+            text = resp.text
+            import re
+            links = re.findall(r'<h3[^>]*class="[^"]*res-title[^"]*"[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', text, re.DOTALL)
+            for i, (url, title) in enumerate(links[:limit]):
+                title_clean = re.sub(r'<[^>]+>', '', title).strip()
+                if title_clean and url.startswith("http"):
+                    all_results.append({
+                        "title": title_clean,
+                        "url": url,
+                        "snippet": query,  # 360 doesn't expose snippets in HTML easily
+                        "engine": "360search",
+                    })
+    except Exception:
+        pass
+
+    # 3. DuckDuckGo HTML
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
@@ -83,26 +102,26 @@ async def search_web(query: str, limit: int = 3) -> list:
                 params={"q": query},
                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
             )
-            text = resp.text
-            # Parse DDG HTML results
-            results = []
             import re
-            # Extract result links and snippets
-            links = re.findall(r'<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>([^<]+)</a>', text)
-            snippets = re.findall(r'<a class="result__snippet"[^>]*>([^<]+)</a>', text)
+            links = re.findall(r'<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>([^<]+)</a>', resp.text)
+            snippets = re.findall(r'<a class="result__snippet"[^>]*>([^<]+)</a>', resp.text)
             for i, (url, title) in enumerate(links[:limit]):
                 snippet = snippets[i] if i < len(snippets) else ""
-                results.append({
-                    "title": title,
-                    "url": url,
-                    "snippet": snippet[:300],
-                })
-            if results:
-                return results
+                all_results.append({"title": title, "url": url, "snippet": snippet[:300], "engine": "duckduckgo"})
     except Exception:
         pass
 
-    return []
+    # Deduplicate by URL, return top N
+    seen = set()
+    results = []
+    for r in all_results:
+        if r["url"] not in seen:
+            seen.add(r["url"])
+            results.append({"title": r["title"], "url": r["url"], "snippet": r.get("snippet", "")})
+        if len(results) >= limit:
+            break
+
+    return results
 
 
 # Pre-built parent question templates with answer hints
