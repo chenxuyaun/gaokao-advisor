@@ -1,8 +1,9 @@
-"""Recommendation API v3 — AI-driven: DeepSeek decides what to recommend."""
+"""Recommendation API v3 — AI-driven: DeepSeek does matching, scoring, and analysis."""
 import os, json, httpx
 from fastapi import APIRouter
 from app.models import RecommendV2Request, RecommendV2Response, MajorGroup, SchoolInfo
-from app.engine import estimate_rank, match_majors, get_cutoff_scores
+from app.engine import estimate_rank, get_cutoff_scores
+from app.searcher import search_market
 
 router = APIRouter()
 
@@ -18,188 +19,177 @@ if os.path.exists(ENV_PATH):
 
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 
+# Province tier data (minimal reference for AI, ~total students per category)
+PROVINCE_REF = {
+    "广东": "80万考生,物理类约35万",
+    "河南": "130万考生,物理类约42万",
+    "山东": "100万考生,综合类约45万",
+    "四川": "77万考生,物理类约30万",
+    "江苏": "40万考生,物理类约28万",
+    "河北": "60万考生,物理类约32万",
+    "湖南": "50万考生,物理类约30万",
+    "安徽": "50万考生,物理类约25万",
+    "湖北": "46万考生,物理类约22万",
+    "浙江": "36万考生,综合类约29万",
+    "北京": "5万考生,综合类",
+    "上海": "5万考生,综合类",
+    "天津": "7万考生,综合类",
+    "重庆": "20万考生,物理类约11万",
+    "福建": "20万考生,物理类约18万",
+    "江西": "40万考生,物理类约20万",
+    "陕西": "30万考生,物理类约15万",
+    "辽宁": "20万考生,物理类约13万",
+    "云南": "38万考生,物理类约18万",
+    "贵州": "40万考生,物理类约22万",
+    "山西": "30万考生,物理类约16万",
+    "黑龙江": "18万考生,物理类约11万",
+    "吉林": "15万考生,物理类约9万",
+    "甘肃": "20万考生,物理类约12万",
+    "广西": "40万考生,物理类约20万",
+    "内蒙古": "16万考生,物理类约8万",
+    "新疆": "15万考生,物理类约8万",
+    "海南": "5万考生,综合类",
+    "宁夏": "7万考生,物理类约5万",
+    "青海": "4万考生,物理类约3万",
+    "西藏": "2万考生,物理类约2万",
+}
 
-async def ai_driven_recommend(
-    score: int, rank: int, province: str, category: str, subject: str,
-    candidates: list
-) -> tuple[list[str], str]:
-    """Let DeepSeek decide which majors to recommend and why."""
+# 985/211/双一流 list for AI reference (so it doesn't have to guess)
+TOP_UNIS = {
+    "985": "北京大学,清华大学,复旦大学,上海交通大学,浙江大学,南京大学,中国科学技术大学,中国人民大学,哈尔滨工业大学,西安交通大学,武汉大学,华中科技大学,中山大学,北京航空航天大学,北京理工大学,同济大学,南开大学,天津大学,东南大学,厦门大学,电子科技大学,四川大学,华南理工大学,重庆大学,兰州大学,北京师范大学,华东师范大学,湖南大学,中南大学,大连理工大学,东北大学,吉林大学,山东大学,中国海洋大学,西北农林科技大学,中国农业大学,中央民族大学,国防科技大学",
+    "211": "北京科技大学,北京交通大学,北京邮电大学,北京化工大学,北京工业大学,北京林业大学,北京外国语大学,北京体育大学,北京中医药大学,华北电力大学,中国矿业大学(北京),中国石油大学(北京),中国地质大学(北京),中央财经大学,对外经济贸易大学,中国政法大学,首都师范大学,南京航空航天大学,南京理工大学,南京师范大学,中国矿业大学,河海大学,江南大学,南京农业大学,中国药科大学,苏州大学,上海财经大学,上海大学,华东理工大学,东华大学,上海外国语大学,上海中医药大学,西南交通大学,西南财经大学,四川农业大学,郑州大学,南昌大学,福州大学,合肥工业大学,安徽大学,武汉理工大学,华中农业大学,华中师范大学,中南财经政法大学,中国地质大学(武汉),湖南师范大学,华南师范大学,暨南大学,西安电子科技大学,陕西师范大学,长安大学,西北大学,河北工业大学,太原理工大学,云南大学,广西大学,贵州大学,海南大学,内蒙古大学,宁夏大学,青海大学,西藏大学,石河子大学,新疆大学,延边大学,辽宁大学,大连海事大学,东北林业大学,东北农业大学,哈尔滨工程大学",
+}
 
-    # Build candidate summary
-    lines = []
-    for i, m in enumerate(candidates[:15]):
-        schools_str = "、".join(
-            f"{s['name']}({s['min_score']}分/{'冲刺' if s.get('tier')=='冲刺' else '稳妥' if s.get('tier')=='稳妥' else '保底'})"
-            for s in m['schools'][:3]
-        )
-        emp = f"就业率{int(m['employment_rate']*100)}%" if m.get('employment_rate') else ""
-        sal = f"年薪{m['avg_salary']/10000:.0f}万" if m.get('avg_salary') else ""
-        lines.append(
-            f"{i+1}. {m['major_category']}（质量{m['quality_score']}分）"
-            f"{' | '+emp if emp else ''}{' | '+sal if sal else ''}"
-            f" | 学校: {schools_str}"
-        )
+CONFIDENCE = "MEDIUM"
 
-    # ===== 实时市场数据搜索（三引擎） =====
+@router.post("/recommend-v3", response_model=RecommendV2Response)
+async def recommend_v3(req: RecommendV2Request):
+    """AI-driven recommendation — DeepSeek does matching, scoring, and analysis with real-time search."""
+    rank = await estimate_rank(req.province, req.score, req.category)
+    cutoffs = await get_cutoff_scores(req.province, 2026, req.category)
+    batch_cutoff = cutoffs.get("本科批")
+
+    # Build cutoff info for prompt
+    special_cutoff = cutoffs.get("特殊类型招生录取控制分数线")
+    cutoff_line = f"特控线{special_cutoff}分" if special_cutoff else ""
+    batch_line = f"本科线{batch_cutoff}分" if batch_cutoff else ""
+
+    province_ref = PROVINCE_REF.get(req.province, "")
+    tier_info = f"985大学: {TOP_UNIS['985']}\n211大学: {TOP_UNIS['211']}"
+
+    # === Real-time market search ===
     market_section = ""
     try:
-        search_queries = []
-        for m in candidates[:4]:
-            cat = m['major_category'].split("/")[0].split(" ")[0]
-            if len(cat) >= 2:
-                search_queries.append(f"{cat} 2026 就业")
-        from app.searcher import search_market
+        search_queries = [
+            f"{req.province} 2025 高考 录取分数线",
+            "2026 应届生 就业 薪资 中位数",
+        ]
         market_data = await search_market(search_queries)
         if market_data:
-            market_section = f"\n【2026年最新市场数据】\n以下是实时搜索到的相关专业就业市场信息（请优先使用这些数据）：\n{market_data}\n"
+            market_section = f"\n【实时市场数据参考】\n{market_data}\n"
     except:
         pass
 
-    prompt = f"""你是一位资深高考志愿规划师，你分析问题的风格像张雪峰老师：数据驱动、就业导向、对普通家庭负责。
+    prompt = f"""你是高考志愿顾问+张雪峰风格分析。根据考生信息，直接推荐适合的专业方向和学校。
 
-考生信息：
-- 省份：{province} {category}，{score}分（全省位次{rank}名），选科{subject}
+【考生信息】
+- 省份：{req.province}（{province_ref}）
+- 分数：{req.score}分，全省位次：约{rank}名
+- 类别：{req.category} | 选科：{req.subject_combo}
+- 分数线：{cutoff_line}，{batch_line}
 
-以下是系统筛选出的所有候选专业方向（含就业率、薪资、学校）：
-{chr(10).join(lines)}
+【高校参考】
+{tier_info}
 {market_section}
-请用「张雪峰式」的思维做推荐——你的核心方法论：
-1. 【就业倒推法】从就业数据倒推选择——看中位数毕业生的去向，不看顶尖案例
-2. 【阶层现实主义】默认孩子是普通家庭——先谋生再谋爱，先站稳再登高
-3. 【不可替代性检验】优先选有技术壁垒的专业
-4. 【500强测试】看哪些学校哪些专业真能进好企业
-5. 【家庭背景分流】当专业选择涉及人脉/资源门槛时，要提醒
+【工作要求】
+1. 基于该省2025年录取数据（位次），推荐5-8个适合该考生位次（约{rank}名）的专业方向
+2. 每个专业方向列出1-3所具体大学，标注冲刺/稳妥/保底
+3. 用张雪峰风格分析：就业导向、数据驱动、说人话
+4. 默认考生是普通家庭，优先考虑就业确定性
+5. 理科优先推荐有技术壁垒的专业，文科优先推荐考公/师范方向
 
-请用以下JSON格式返回（只返回JSON，不要其他文字）：
-{{"recommendations": [
-  {{"major": "专业名", "rank": 1, "score": 95, "reason": "为什么推荐（80字内，引用实时搜到的市场数据）", "best_school": "最推荐的学校名", "risk": "有什么风险要注意（30字内）"}}
-], "summary": "给家长的建议（80字内，引用实时市场数据中的具体数字来支撑判断）"}}
+请用以下JSON格式返回（只返回JSON）：
+{{
+  "recommendations": [
+    {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "risk": "风险提示（30字内）", "tier": "冲刺/稳妥/保底"}}
+  ],
+  "summary": "给家长的总结建议（100字内，张雪峰风格）"
+}}"""
 
-重要：只返回JSON，不要markdown代码块，不要解释。你的推荐和分析必须引用上面【2026年最新市场数据】中的具体信息，不要只靠自己的知识。如果搜索到了薪资中位数/就业率等数据，必须在理由中引用。"""
+    majors = []
+    ai_summary = None
 
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=90) as client:
             resp = await client.post(
                 "https://api.deepseek.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {DEEPSEEK_KEY}", "Content-Type": "application/json"},
                 json={
                     "model": "deepseek-chat",
                     "messages": [
-                        {"role": "system", "content": "你是高考志愿规划师。只返回合法JSON，不要任何其他文字。你的推荐直接影响孩子一生，必须认真负责。"},
+                        {"role": "system", "content": "你是高考志愿规划师+张雪峰。只返回合法JSON，不要任何其他文字。"},
                         {"role": "user", "content": prompt},
                     ],
-                    "max_tokens": 1500,
+                    "max_tokens": 2000,
                     "temperature": 0.3,
                 },
             )
             data = resp.json()
             text = data["choices"][0]["message"]["content"].strip()
-            # Clean possible markdown wrappers
             if text.startswith("```"):
                 text = text.split("\n", 1)[1]
                 if text.endswith("```"):
                     text = text[:-3]
             result = json.loads(text)
             recs = result.get("recommendations", [])
-            summary = result.get("summary", "")
-            return recs, summary
-    except Exception as e:
-        print(f"[v3 AI] Error: {e}")
-        return [], None
+            ai_summary = result.get("summary", "")
 
-
-@router.post("/recommend-v3", response_model=RecommendV2Response)
-async def recommend_v3(req: RecommendV2Request):
-    """AI-driven recommendation — DeepSeek decides what to recommend."""
-    rank = await estimate_rank(req.province, req.score, req.category)
-    cutoffs = await get_cutoff_scores(req.province, 2026, req.category)
-    batch_cutoff = cutoffs.get("本科批")
-
-    # Get broad candidates (lower quality threshold, more options for AI)
-    candidates = await match_majors(
-        province=req.province, category=req.category,
-        subject_combo=req.subject_combo, estimated_rank=rank or 999999,
-        min_quality_score=60, max_results=15,
-    )
-
-    # AI decides what to recommend
-    ai_recs, ai_summary = await ai_driven_recommend(
-        score=req.score, rank=rank or 0, province=req.province,
-        category=req.category, subject=req.subject_combo,
-        candidates=candidates,
-    )
-
-    # Map AI picks back to candidate data
-    majors = []
-    if ai_recs:
-        for rec in ai_recs:
-            # Find matching candidate
-            matched = None
-            for c in candidates:
-                if rec["major"] in c["major_category"] or c["major_category"] in rec["major"]:
-                    matched = c
-                    break
-            if not matched:
-                matched = candidates[0] if candidates else None
-
-            if matched:
-                schools = [
-                    SchoolInfo(
-                        id=s["id"], name=s["name"], level=s["level"],
-                        city=s["city"], min_score=s["min_score"],
-                        min_rank=s["min_rank"], tier=s.get("tier", "稳妥"),
-                        confidence=s.get("confidence", "MEDIUM"),
-                    )
-                    for s in matched["schools"]
-                ]
+            for rec in recs:
                 majors.append(MajorGroup(
-                    major_category=rec["major"],
-                    quality_score=rec.get("score", matched["quality_score"]),
-                    civil_service_note=matched.get("civil_service_note", ""),
+                    major_category=rec.get("major", "综合类"),
+                    quality_score=rec.get("score", 70),
+                    civil_service_note="",
                     growth_note=rec.get("reason", ""),
-                    avg_salary=matched.get("avg_salary"),
-                    employment_rate=matched.get("employment_rate"),
-                    career_path=matched.get("career_path"),
+                    avg_salary=None,
+                    employment_rate=None,
+                    career_path="",
                     zhang_xuefeng_comment=(
                         f'AI推荐理由：{rec.get("reason","")} | '
                         f'推荐学校：{rec.get("best_school","")} | '
                         f'风险：{rec.get("risk","")}'
                     ),
-                    schools=schools,
+                    schools=[
+                        SchoolInfo(
+                            id=0, name=rec.get("best_school", ""),
+                            level="", city="", min_score=0, min_rank=0,
+                            tier=rec.get("tier", "稳妥"), confidence=CONFIDENCE,
+                        )
+                    ] if rec.get("best_school") else [],
                 ))
+    except Exception as e:
+        print(f"[v3 AI] Error: {e}")
 
-    # Fallback: if AI returned fewer than 8, supplement with formula results
-    if len(majors) < 8:
-        existing = {m.major_category for m in majors}
-        for m in candidates[:15]:
-            if m["major_category"] in existing:
-                continue
-            schools = [
-                SchoolInfo(
-                    id=s["id"], name=s["name"], level=s["level"],
-                    city=s["city"], min_score=s["min_score"],
-                    min_rank=s["min_rank"], tier=s.get("tier", "稳妥"),
-                    confidence=s.get("confidence", "MEDIUM"),
-                )
-                for s in m["schools"]
-            ]
+    if not majors:
+        # Ultimate fallback
+        for i, (name, reason) in enumerate([
+            ("计算机科学与技术", "就业率90%+，薪资高，技术壁垒强"),
+            ("临床医学", "越老越值钱，就业确定性极高"),
+            ("电气工程及其自动化", "进国家电网，稳定铁饭碗"),
+            ("法学", "考公第一大专业，岗位多"),
+            ("会计学", "考公+企业双方向，稳定"),
+        ][:5]):
             majors.append(MajorGroup(
-                major_category=m["major_category"],
-                quality_score=m["quality_score"],
-                civil_service_note=m["civil_service_note"],
-                growth_note=m["growth_note"],
-                avg_salary=m.get("avg_salary"),
-                employment_rate=m.get("employment_rate"),
-                career_path=m.get("career_path"),
-                zhang_xuefeng_comment=m.get("zhang_xuefeng_comment"),
-                schools=schools,
+                major_category=name, quality_score=85 - i * 5,
+                civil_service_note="", growth_note=reason,
+                avg_salary=None, employment_rate=None, career_path="",
+                zhang_xuefeng_comment=f"AI推荐理由：{reason} | 风险：需结合具体分数查询",
+                schools=[],
             ))
-            if len(majors) >= 8:
-                break
+        ai_summary = ai_summary or "建议结合具体分数和省排名，用实时搜索功能查询最新录取数据。"
 
     return RecommendV2Response(
         province=req.province, score=req.score, category=req.category,
         estimated_rank=rank, cutoff_score=batch_cutoff,
         majors=majors,
-        ai_summary=ai_summary or (ai_recs and "AI 深度分析完成" or None),
+        ai_summary=ai_summary,
     )
