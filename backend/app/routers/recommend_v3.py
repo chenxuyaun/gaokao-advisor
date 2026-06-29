@@ -168,10 +168,10 @@ async def recommend_v3(req: RecommendV2Request):
                     schools=schools,
                 ))
 
-    # Fallback: if AI returned fewer than 5, supplement with formula results
-    if len(majors) < 5:
+    # Fallback: if AI returned fewer than 8, supplement with formula results
+    if len(majors) < 8:
         existing = {m.major_category for m in majors}
-        for m in candidates[:10]:
+        for m in candidates[:15]:
             if m["major_category"] in existing:
                 continue
             schools = [
@@ -194,7 +194,7 @@ async def recommend_v3(req: RecommendV2Request):
                 zhang_xuefeng_comment=m.get("zhang_xuefeng_comment"),
                 schools=schools,
             ))
-            if len(majors) >= 5:
+            if len(majors) >= 8:
                 break
 
     return RecommendV2Response(
