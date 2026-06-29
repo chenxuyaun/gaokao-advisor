@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,6 +39,9 @@ jobs:
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
