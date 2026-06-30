@@ -7,14 +7,26 @@
   },
   {
     "school": "北京第二外国语学院",
-    "reason": "分数远高于考生水平，建议降为冲刺",
+    "reason": "分数远高于考生水平",
     "max_rank_ratio": 1.5,
+    "added": "2026-06-30"
+  },
+  {
+    "school": "四川工程职业技术大学",
+    "reason": "数据混入低分专升本/特殊批次记录，不能作为普通本科推荐",
+    "max_rank_ratio": 1.3,
     "added": "2026-06-30"
   },
   {
     "rule": "below_cutoff_no_benke",
     "description": "低于本科线的考生，所有本科院校必须降为降分冲刺或直接移除",
-    "action": "downgrade_or_remove", 
+    "action": "downgrade_or_remove",
+    "added": "2026-06-30"
+  },
+  {
+    "rule": "check_min_score_vs_cutoff",
+    "description": "如果学校的录取分低于该省本科线10分以上但标注为普通本科，可能是数据质量问题",
+    "action": "downgrade_to_冲刺",
     "added": "2026-06-30"
   }
 ]

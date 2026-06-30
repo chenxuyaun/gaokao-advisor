@@ -245,6 +245,13 @@ async def recommend_v3(req: RecommendV2Request):
                         print(f"[v3] PENALTY: {school_name} - {rule.get('reason','')}")
                         tier = "冲刺"  # Force downgrade
                         penalty_hit = True
+                
+                # Auto-detect: school score far below 本科线 but labeled 普通本科?
+                if batch_cutoff and est_score < batch_cutoff - 30:
+                    school_lv = school_info.get('level', '')
+                    if '专科' not in school_lv and '高职' not in school_lv and '职业' not in school_lv:
+                        print(f"[v3] WARNING: {school_name} ({est_score}分) below cutoff ({batch_cutoff}) but level is not 专科")
+                        tier = "冲刺"  # Downgrade to 冲刺
                 est_score = batch_cutoff if batch_cutoff else 400
                 if tier == "冲刺":
                     est_score += 30
