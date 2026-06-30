@@ -21,13 +21,11 @@ async def import_all():
     print(f"Records before: {before}", flush=True)
     cur = await db.execute_fetchall("SELECT COUNT(*) FROM universities")
     univ_before = cur[0][0]
-    print(f"Universities before: {univ_before}", flush=True)
-
-    # Delete old GAOKAO_CN data to avoid duplicates
-    await db.execute("DELETE FROM admission_records WHERE source='GAOKAO_CN'")
-    await db.commit()
-    print("Cleared old GAOKAO_CN records", flush=True)
-
+    print(f"Records before: {before}")
+    
+    # Don't delete - just add new records with INSERT OR IGNORE
+    # await db.execute("DELETE FROM admission_records WHERE source='GAOKAO_CN'")
+    
     inserted = 0
     errors = 0
     skipped = 0
@@ -86,7 +84,7 @@ async def import_all():
                     continue
 
                 await db.execute(
-                    "INSERT INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence) VALUES ((SELECT id FROM universities WHERE name=? LIMIT 1),2025,?,?,?,?,?,?,?,0,0,'GAOKAO_CN','HIGH')",
+                    "INSERT OR IGNORE INTO admission_records (university_id, year, target_province, category, subject_requirement, group_name, min_score, min_rank, major_category, tuition, is_sino_foreign, source, confidence) VALUES ((SELECT id FROM universities WHERE name=? LIMIT 1),2025,?,?,?,?,?,?,?,0,0,'GAOKAO_CN','HIGH')",
                     (uni_name, province, category, subject, batch, score, rank, major)
                 )
                 inserted += 1
