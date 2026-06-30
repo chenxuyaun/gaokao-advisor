@@ -100,6 +100,9 @@ async def recommend_v3(req: RecommendV2Request):
         from app.database import get_db as db_get
         db = await db_get()
         lo, hi = int(rank * 0.7), int(rank * 1.5)
+        # For below-cutoff students, expand range to find 专科 schools
+        if below_cutoff:
+            lo, hi = int(rank * 0.5), int(rank * 2.0)
         cur = await db.execute("""
             SELECT u.name, u.level, ar.min_score, ar.min_rank, ar.major_category
             FROM admission_records ar JOIN universities u ON ar.university_id = u.id
@@ -124,6 +127,16 @@ async def recommend_v3(req: RecommendV2Request):
     except:
         pass
 
+    # If student is below 本科线, the database data may be misleading
+    below_cutoff = False
+    if batch_cutoff and req.score < batch_cutoff:
+        below_cutoff = True
+        print(f"[v3] WARNING: score {req.score} below cutoff {batch_cutoff}")
+        # Add a hard warning to the AI context
+        hard_warning = f"\n⚠️ 重要提醒：考生{req.score}分低于{req.province}{req.category}本科线{batch_cutoff}分！数据库中所有录取分数≥{batch_cutoff}的本科院校均无法通过常规批次录取。考生只能关注专科/高职批次，或等待降分征集志愿。请在推荐时明确标注这一点。\n"
+    else:
+        hard_warning = ""
+    
     prompt = f"""你是高考志愿顾问。根据考生信息和实时搜索的数据，直接推荐适合的专业方向和学校。注意：以下【数据库中该位次附近的真实录取数据】仅限于参考，如果这些数据看起来不准确或与实际情况不符，请以你自己的知识为准，不要被不准确的数据误导。
 
 【考生信息】
@@ -138,6 +151,7 @@ async def recommend_v3(req: RecommendV2Request):
 
 {db_matches}
 {market_section}
+{hard_warning}
 【工作要求】
 1. **只从上面【实时市场数据参考】里选择学校推荐，不要自己添加任何数据库中不存在的学校。**
 2. 基于该省2025年录取数据（位次），推荐5-8个适合该考生位次（约{rank}名）的专业方向
@@ -147,8 +161,9 @@ async def recommend_v3(req: RecommendV2Request):
 6. 理科优先推荐有技术壁垒的专业，文科优先推荐考公/师范方向
 7. **选科限制：{req.category}考生只能报考对应选科的专业。{req.category} + {req.subject_combo} 不能报临床医学/计算机/电气工程等要求物化生的专业，只能报法学/师范/汉语言/会计/管理等不限选科的专业。**
 8. **数据优先级：实时搜索数据 > 你自己的知识 > 上面数据库中的数据。如果实时搜索找到了某大学2025年在该省的录取分数线，优先使用。**
-9. **重要：只推荐数据库中有明确录取数据的学校。不要自己编造学校名称。如果数据库数据不足，就如实说"该分数段可选学校较少"。**
-9. **summary的总结建议要调用真实数据：如果"数据库中该位次附近的真实录取数据"不为空，必须引用其中的1-2个具体学校分数线/位次数据来支持观点，不要说空话。**
+9. **重要：只推荐数据库中有明确录取数据的学校。不要自己编造学校名称。**
+10. **本科线规则：如果考生分数低于本科线（{batch_line}），则考生在常规批次无法被本科院校录取。此时必须优先推荐专科/高职院校（如数据库中有的四川职业技术学院、苏州卫生职业技术学院等），只有在数据库中没有专科数据时才可以考虑本科降分录取院校。所有推荐的本科院校必须标注为冲刺档次并注明"降分录取可能性低"字样。**
+11. **summary的总结建议要调用真实数据：如果"数据库中该位次附近的真实录取数据"不为空，必须引用其中的1-2个具体学校分数线/位次数据来支持观点，不要说空话。**
 
 请用以下JSON格式返回（只返回JSON）：
 {{
@@ -191,6 +206,7 @@ async def recommend_v3(req: RecommendV2Request):
 
             for rec in recs:
                 school_name = rec.get("best_school", "")
+                
                 # Look up school info from database (level/city)
                 clean_name = school_name
                 import re
