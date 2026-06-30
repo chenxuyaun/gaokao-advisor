@@ -11,8 +11,8 @@ COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY data/ ./data/
 
-# Initialize database with comprehensive seed data
-RUN python data/seed_unified.py
+# Copy pre-built database with 36k real admission records
+COPY data/gaokao.db ./data/gaokao.db
 
 EXPOSE 7860
 

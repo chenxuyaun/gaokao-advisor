@@ -153,7 +153,7 @@ async def recommend_v3(req: RecommendV2Request):
 请用以下JSON格式返回（只返回JSON）：
 {{
   "recommendations": [
-    {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "best_school_score": 该校预估录取分, "best_school_tier": "冲刺/稳妥/保底", "risk": "风险提示（30字内）"}}
+    {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "best_school_score": 该校预估录取分, "best_school_rank": 该校预估录取位次, "best_school_tier": "冲刺/稳妥/保底", "risk": "风险提示（30字内）"}}
   ],
   "summary": "给家长的总结建议（100字内，张雪峰风格）"
 }}"""
@@ -220,6 +220,17 @@ async def recommend_v3(req: RecommendV2Request):
                 ai_score = rec.get("best_school_score")
                 if ai_score and ai_score > 0:
                     est_score = ai_score
+                
+                # Override tier with rank-based calculation (AI frequently gets this wrong)
+                est_rank_val = rec.get("best_school_rank", 0)
+                if isinstance(est_rank_val, int) and est_rank_val > 0 and rank and rank > 0:
+                    ratio = est_rank_val / rank
+                    if ratio < 0.85:
+                        tier = "冲刺"
+                    elif ratio > 1.15:
+                        tier = "保底"
+                    else:
+                        tier = "稳妥"
                 
                 majors.append(MajorGroup(
                     major_category=rec.get("major", "综合类"),
