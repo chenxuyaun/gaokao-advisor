@@ -229,6 +229,9 @@ function render(data) {
       .replace(/\n/g, '<br>');
     html += `<div class="ai-box"><h3>🤖 AI 职业分析</h3><div class="ai-text">${aiText}</div></div>`;
   }
+  if (data.chain_of_thought) {
+    html += `<div class="ai-box" style="background:#fffbeb;border:1px solid #fde68a;"><h3>🧠 AI 推理过程</h3><div class="ai-text" style="font-size:12px;color:#78716c;">${data.chain_of_thought}</div></div>`;
+  }
   if (data.estimated_rank) {
     html += `<div class="rank-bar">你的位次：全省第 <b>${data.estimated_rank.toLocaleString()}</b> 名${data.cutoff_score ? ' | 本科线 '+data.cutoff_score+'分' : ''}</div>`;
   }
