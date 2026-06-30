@@ -1,0 +1,20 @@
+[
+  {
+    "school": "四川师范大学",
+    "reason": "421分根本录不上，rank差7万以上",
+    "max_rank_ratio": 1.5,
+    "added": "2026-06-30"
+  },
+  {
+    "school": "北京第二外国语学院",
+    "reason": "分数远高于考生水平，建议降为冲刺",
+    "max_rank_ratio": 1.5,
+    "added": "2026-06-30"
+  },
+  {
+    "rule": "below_cutoff_no_benke",
+    "description": "低于本科线的考生，所有本科院校必须降为降分冲刺或直接移除",
+    "action": "downgrade_or_remove", 
+    "added": "2026-06-30"
+  }
+]

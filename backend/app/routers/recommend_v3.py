@@ -5,6 +5,17 @@ from app.models import RecommendV2Request, RecommendV2Response, MajorGroup, Scho
 from app.engine import estimate_rank, get_cutoff_scores
 from app.searcher import search_market
 
+# Load penalty rules
+import json as _json
+from pathlib import Path as _Path
+PENALTY_FILE = _Path(__file__).parent.parent.parent.parent / "data" / "penalties.json"
+PENALTY_RULES = []
+if PENALTY_FILE.exists():
+    try:
+        PENALTY_RULES = _json.loads(PENALTY_FILE.read_text(encoding='utf-8'))
+    except:
+        pass
+
 router = APIRouter()
 
 ENV_PATH = os.path.expandvars(r"${HOME}\AppData\Local\hermes\.env")
@@ -137,7 +148,7 @@ async def recommend_v3(req: RecommendV2Request):
     else:
         hard_warning = ""
     
-    prompt = f"""你是高考志愿顾问。根据考生信息和实时搜索的数据，直接推荐适合的专业方向和学校。注意：以下【数据库中该位次附近的真实录取数据】仅限于参考，如果这些数据看起来不准确或与实际情况不符，请以你自己的知识为准，不要被不准确的数据误导。
+    prompt = f"""你是高考志愿顾问。根据考生信息和实时搜索的数据，直接推荐适合的专业方向和学校。
 
 【考生信息】
 - 省份：{req.province}（{province_ref}）
@@ -167,6 +178,7 @@ async def recommend_v3(req: RecommendV2Request):
 
 请用以下JSON格式返回（只返回JSON）：
 {{
+  "chain_of_thought": "请先写下你的推理过程（80字内）：你是如何根据位次匹配这些学校的？为什么选这些专业？有哪些风险？你的决策逻辑是什么？",
   "recommendations": [
     {{"major": "专业名", "rank": 1, "score": 分数(0-100), "reason": "推荐理由（80字内，引用数据）", "best_school": "最推荐的学校", "best_school_score": 该校预估录取分, "best_school_rank": 该校预估录取位次, "best_school_tier": "冲刺/稳妥/保底", "risk": "风险提示（30字内）"}}
   ],
@@ -200,6 +212,7 @@ async def recommend_v3(req: RecommendV2Request):
             result = json.loads(text)
             recs = result.get("recommendations", [])
             ai_summary = result.get("summary", "")
+            chain_of_thought = result.get("chain_of_thought", "")
             if not recs:
                 print(f"[v3] AI returned no recommendations! Summary: {ai_summary[:100]}")
                 print(f"[v3] Raw result keys: {list(result.keys())}")
@@ -228,6 +241,14 @@ async def recommend_v3(req: RecommendV2Request):
                 
                 # Estimate score from tier + cutoff
                 tier = rec.get("best_school_tier", "稳妥")
+                
+                # Apply penalty rules: check if this school is on the penalty list
+                penalty_hit = False
+                for rule in PENALTY_RULES:
+                    if rule.get('school') and rule['school'] in school_name:
+                        print(f"[v3] PENALTY: {school_name} - {rule.get('reason','')}")
+                        tier = "冲刺"  # Force downgrade
+                        penalty_hit = True
                 est_score = batch_cutoff if batch_cutoff else 400
                 if tier == "冲刺":
                     est_score += 30
@@ -297,4 +318,5 @@ async def recommend_v3(req: RecommendV2Request):
         estimated_rank=rank, cutoff_score=batch_cutoff,
         majors=majors,
         ai_summary=ai_summary,
+        chain_of_thought=chain_of_thought,
     )

@@ -97,6 +97,7 @@ class RecommendV2Response(BaseModel):
     cutoff_score: Optional[int] = None
     majors: List[MajorGroup]
     ai_summary: Optional[str] = None  # Overall AI career advice
+    chain_of_thought: Optional[str] = None  # AI reasoning process
     disclaimer: str = (
         "⚠️ 重要提醒：本系统基于2025年历史录取数据推算，2026年实际录取分数线会有波动。"
         "数据仅供参考，不构成志愿填报建议。最终填报请以四川省教育考试院官方系统为准。"
