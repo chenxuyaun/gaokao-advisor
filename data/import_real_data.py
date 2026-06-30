@@ -61,13 +61,27 @@ async def import_all():
             
             batch_inserted = 0
             for rec in records:
+                # Handle both format types: A has local_province_name, B uses local_province_id
                 province = rec.get('local_province_name', '')
-                category = rec.get('local_type_name', '物理类')
+                if not province:
+                    # Format B: use school's province + batch lookup
+                    province = data.get('province', '')
+                
+                category = rec.get('local_type_name', '')
+                if not category:
+                    cat_id = rec.get('local_type_id', 0)
+                    category = {1: '物理类', 2: '历史类', 3: '综合', 4: '艺术', 5: '体育'}.get(cat_id, '物理类')
+                
                 score = rec.get('min') or 0
                 rank = rec.get('min_section') or 0
                 subject = rec.get('sg_info', '不限')
                 batch = rec.get('local_batch_name', '')
+                if not batch:
+                    batch_id = rec.get('local_batch_id', 0)
+                    batch = {1: '本科批', 2: '本科提前批', 3: '专科批', 4: '艺术类', 5: '体育类', 7: '本科批'}.get(batch_id, '本科批')
                 major = rec.get('sg_name', '综合类')
+                if not major:
+                    major = rec.get('sp_name', '综合类')  # Format B uses sp_name for major
                 
                 if not province or not score:
                     continue
